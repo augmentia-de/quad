@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "description": "Filesystem access via SSE",
+      "url": "http://localhost:3001/sse"
+    }
+  }
+}

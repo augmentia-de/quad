@@ -1,0 +1,150 @@
+{
+  "name": "MCP Tool List Example",
+  "description": "Example configuration with all possible MCP tool types",
+  "mcpServers": {
+    "filesystem": {
+      "description": "Filesystem access",
+      "url": "http://localhost:3001/sse",
+      "tools": [
+        {
+          "name": "read_file",
+          "description": "Reads the content of a file",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "path": {"type": "string", "description": "Path to the file"}
+            },
+            "required": ["path"]
+          }
+        },
+        {
+          "name": "write_file",
+          "description": "Writes content to a file",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "path": {"type": "string"},
+              "content": {"type": "string"}
+            },
+            "required": ["path", "content"]
+          }
+        }
+      ]
+    },
+    "memory": {
+      "description": "Persistent memory tool",
+      "command": "npx -y @modelcontextprotocol/server-memory",
+      "env": {
+        "MEMORY_FILE_PATH": "/workspace/memory.json",
+        "MAX_MEMORY_ENTRIES": "1000"
+      },
+      "tools": [
+        {
+          "name": "memory_store",
+          "description": "Stores a key-value pair in memory",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "key": {"type": "string"},
+              "value": {"type": "string"},
+              "context": {"type": "string", "description": "optional context"}
+            },
+            "required": ["key", "value"]
+          }
+        },
+        {
+          "name": "memory_recall",
+          "description": "Retrieves value for a key from memory",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "key": {"type": "string"}
+            },
+            "required": ["key"]
+          }
+        }
+      ]
+    },
+    "brave_search": {
+      "description": "Web search via Brave Search API",
+      "url": "https://search.brave.com/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer ${BRAVE_API_KEY}"
+      },
+      "tools": [
+        {
+          "name": "search",
+          "description": "Performs a web search",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "query": {"type": "string"},
+              "count": {"type": "integer", "default": 10}
+            },
+            "required": ["query"]
+          }
+        }
+      ]
+    },
+    "git": {
+      "description": "Git repository operations",
+      "command": "python -m mcp_server_git",
+      "env": {
+        "GIT_REPO_PATH": "/workspace/shared"
+      },
+      "tools": [
+        {
+          "name": "git_status",
+          "description": "Returns the git status of the repository back",
+          "inputSchema": {
+            "type": "object"
+          }
+        },
+        {
+          "name": "git_commit",
+          "description": "Creates a git commit",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "message": {"type": "string"}
+            },
+            "required": ["message"]
+          }
+        }
+      ]
+    },
+    "calculator": {
+      "description": "Simple calculator",
+      "command": "npx -y @modelcontextprotocol/server-calculator",
+      "tools": [
+        {
+          "name": "calculate",
+          "description": "Calculates a mathematical expression",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "expression": {"type": "string"}
+            },
+            "required": ["expression"]
+          }
+        }
+      ]
+    }
+  },
+  "plugin": {
+    "enabled": true,
+    "timeout": "30s",
+    "retry": {
+      "maxAttempts": 3,
+      "backoff": "1s"
+    }
+  },
+  "security": {
+    "allowedServers": ["filesystem", "memory", "git", "calculator"],
+    "allowedTools": {
+      "filesystem": ["read_file", "write_file"],
+      "memory": ["memory_store", "memory_recall"],
+      "git": ["git_status", "git_commit"]
+    }
+  }
+}

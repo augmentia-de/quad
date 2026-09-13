@@ -1,0 +1,48 @@
+# 03-identity-keycloak.yml — Keycloak OpenID Connect Identity Provider (Layer 3)
+# Starten: ./stack.sh keycloak
+#
+# Dependencies: requires local Layer 1 (01-infrastructure.yml → postgres-pgvector)
+#   — resolved via stack.sh-startup order (infra → keycloak), not via
+#     Cross-File-depends_on, damit diese Datei einzeln deploybar bleibt.
+# Provides identity for: Layer 5 (App) OIDC + MCP Token Exchange / Authorization Services
+#
+# Admin-Konsole:  http://localhost:8180  (admin / ${KEYCLOAK_ADMIN_PASSWORD:-admin})
+# Realm-Import:   /opt/keycloak/data/import/*.json (alle Dateien aus deploy/keycloak/)
+
+networks:
+  llm-net:
+    external: true
+
+services:
+  # ==========================================================
+  #  Layer 3: Keycloak — OpenID Connect Identity Provider
+  # ==========================================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: lab-keycloak
+    command: start-dev --import-realm
+    restart: unless-stopped
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres-pgvector:5432/${POSTGRES_DB:-quad}
+      KC_DB_USERNAME: ${POSTGRES_USER:-postgres}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      KC_HTTP_PORT: 8180
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+    ports:
+      - "8180:8180"
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8180 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - llm-net

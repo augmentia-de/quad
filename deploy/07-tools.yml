@@ -1,0 +1,61 @@
+# 07-tools.yml — Helper-/Debug-Container (Layer 7)
+# Starten: ./stack.sh tools
+#
+# Debug tools for error analysis & execution review im dev/Stack:
+#   - Redpanda Console  → kafka topics/messages/consumer inspect
+#   - Adminer           → PostgreSQL (pgvector, Langfuse, Keycloak-DB) inspizieren
+#   - RedisInsight      → Redis-Cache inspizieren
+#
+# Hinweise:
+#   * Redpanda Console verbindet sich per Kafka-Protokoll mit dem bestehenden
+#     apache/kafka-Broker (Layer 1) — Redpanda selbst wird NOT required.
+#   * Adminer runs in the llm-net und reaches postgres-pgvector, langfuse-db,
+#     keycloak/DB — SQLite-Dateien (data/quad.db) sind aus dem Container
+#     jedoch nicht erreichbar (Host-Filesystem).
+#   * Kein Grafana/Loki hier — siehe 08-observability-ui.yml (optional).
+
+networks:
+  llm-net:
+    external: true
+
+services:
+  # ==========================================================
+  #  Redpanda Console — Kafka-UI
+  # ==========================================================
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:v2.7.2
+    container_name: redpanda-console
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    environment:
+      KAFKA_BROKERS: kafka:9092
+# Dependency on kafka (Layer 1) is resolved via stack.sh-startup order
+# (self-healing via restart), no cross-file depends_on.
+    networks:
+      - llm-net
+
+  # ==========================================================
+  #  Adminer — PostgreSQL-DB-UI
+  # ==========================================================
+  adminer:
+    image: adminer:4.8.1
+    container_name: adminer
+    restart: unless-stopped
+    ports:
+      - "8083:8080"
+    networks:
+      - llm-net
+
+  # ==========================================================
+  #  RedisInsight — Redis-UI
+  # ==========================================================
+  redis-insight:
+    image: redis/redisinsight:2.54.0
+    container_name: redis-insight
+    restart: unless-stopped
+    ports:
+      - "8084:5540"
+    # Dependency on redis (Layer 1) resolved via stack.sh order.
+    networks:
+      - llm-net

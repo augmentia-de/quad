@@ -1,0 +1,35 @@
+apiVersion: 1
+
+datasources:
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    isDefault: true
+    editable: true
+    uid: tempo
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: tempo
+      nodeGraph:
+        enabled: true
+      lokiSearch:
+        datasourceUid: tempo
+
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    editable: true
+    uid: prometheus
+    isDefault: false
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: true
+    uid: loki
+    isDefault: false
+    jsonData:
+      maxLines: 1000

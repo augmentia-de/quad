@@ -1,0 +1,34 @@
+target/
+set_keys.sh
+/.env
+# Secrets — never commit real values (keep *.example as templates)
+deploy/.env.secrets.cloud
+deploy/.env.dev
+deploy/.env.prod
+deploy/.env.cloud
+deploy/.env.deploy
+
+# Runtime data
+/workspace/
+
+# LLM .env config per module (copy .env.example → .env; never commit keys)
+/openworker-quarkus/.env
+
+# UI
+quad-ui/dist/
+quad-ui/node_modules/
+
+# Quarkus UI cache
+quad-quarkus/target/classes/META-INF/resources/ui/
+/quad-ui/dist-types/
+/quad-ui/package-lock.json
+/quad-quarkus/logs/
+/logs/
+*.iml
+.idea/
+/data/
+/misc/
+/openworker-ui/
+/openworker-quarkus/logs/
+/openworker-quarkus/openworker.db
+/mcp/

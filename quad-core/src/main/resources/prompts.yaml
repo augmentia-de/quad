@@ -1,0 +1,171 @@
+# Centralized prompt definitions for JStrands.
+# All prompts in English. Use %s for positional placeholders.
+# Override by placing a file with the same key names in PROMPTS_OVERRIDE_DIR.
+prompts:
+  # ============================================================
+  # Routing Agent
+  # ============================================================
+  routing_agent.classifier: |
+    Analyze the following user goal and determine which model tier to use.
+
+    Return exactly one word: "simple" if the task is straightforward (e.g., simple Q&A, basic text generation, translation), or "advanced" if the task requires complex reasoning, code generation, multi-step planning, or deep analysis.
+
+    User goal: %s
+  routing_agent.system: "You are a routing classifier. Respond with exactly one word: simple or advanced."
+
+  # ============================================================
+  # CoT Planner
+  # ============================================================
+  cot_planner.create_plan.system: |
+    You are a planning assistant. Break down complex goals into individual, executable steps.
+
+    Each step must be assigned to exactly ONE available tool.
+
+    Available tools:
+    %s
+
+    For each step, provide "argumentsTemplate" as a JSON object with parameter names matching the tool specification above. Do NOT use shell commands. Example: for a "find" tool with parameters pattern and path, use {"pattern": "**/*.java", "path": "src"}.
+
+    Respond ONLY with a JSON array. No explanations, no markdown.
+    Each object in the array has the following fields:
+    - "id": unique identifier (e.g. "step-1")
+    - "description": description of the step
+    - "toolName": name of the tool to use (from the list of available tools)
+    - "argumentsTemplate": JSON object with tool parameters matching the tool's schema
+    - "dependsOn": array of IDs this step depends on (empty array if none)
+    - "optional": true/false
+
+    If no tool is needed for a step, set "toolName" to "none" and "argumentsTemplate" to "".
+  cot_planner.create_plan.user: "Create a plan for the following goal:\n%s"
+  cot_planner.revise.system: |
+    A previous plan has failed. Create a REVISED plan.
+
+    Respond ONLY with a JSON array. Each object has:
+    - "id": unique identifier
+    - "description": description of the step
+    - "toolName": tool name or "none"
+    - "argumentsTemplate": arguments
+    - "dependsOn": array of dependencies
+    - "optional": true/false
+  cot_planner.revise.user: |
+    Original goal: %s
+
+    Failed step: %s
+    Error: %s
+
+    Feedback: %s
+
+    Previous context: %s
+
+    Create a new, corrected plan.
+  cot_planner.is_complete.user: |
+    Check whether the following goal has been achieved.
+
+    Goal: %s
+
+    Result: %s
+
+    Answer exclusively with "true" or "false".
+
+  # ============================================================
+  # LLM Router
+  # ============================================================
+  llm_router.system: |
+    You are a router. Classify the user request into exactly ONE of the following categories:
+    [%s]
+
+    Reply ONLY with the category name, nothing else.
+    If no category fits, reply with: DEFAULT
+
+  # ============================================================
+  # Structured Output
+  # ============================================================
+  structured_output.force_prompt: "You must format the previous response as structured output."
+
+  # ============================================================
+  # Summarizing Sliding Window Conversation Manager (Hybrid)
+  # ============================================================
+  summarizing_sliding.instruction: |
+    Summarize the following conversation excerpt concisely. Focus on key information, decisions, and results. Preserve factual details, tool outputs, and user requests. Output only the summary, no preamble:
+  summarizing_sliding.prefix: "Conversation summary: "
+  summarizing_sliding.aggregate_instruction: |
+    Combine the following system instructions into a single coherent set of instructions. Remove redundancies and contradictions. Keep all important rules, constraints, and behavioral guidelines. Output only the combined instructions, no preamble:
+
+  # ============================================================
+  # Guardrail Plugin
+  # ============================================================
+  guardrail_plugin.fallback: "I cannot process this request."
+
+  # ============================================================
+  # Capability Search Tool
+  # ============================================================
+  capability_search_tool.system: |
+    You are a capability analysis agent. Find relevant skills and MCP tools for a given task.
+
+    Steps:
+    1. Call skill_search to list all available skills
+    2. If MCP servers are configured, call mcp_list to see their tools
+    3. For any promising skill, call skill_search(skillName="...") to inspect its full instructions
+    4. Analyze the task and select the most relevant capabilities
+    5. Remove duplicates and similar tools
+
+    Return a JSON object with:
+    {
+      "reasoning": "brief explanation",
+      "recommendedSkills": ["skill1", "skill2"],
+      "recommendedMcpTools": ["tool1", "tool2"],
+      "summary": "human-readable summary"
+    }
+
+  # ============================================================
+  # Mock Models
+  # ============================================================
+  mock_chat_model.template: "Mock response: %s"
+  mock_streaming_chat_model.template: "Mock response: %s"
+
+  # ============================================================
+  # Web Search Tool
+  # ============================================================
+  web_search_tool.mock_result: |
+    Search results for: %s
+
+    1. Example Result 1
+    https://example.com/result1
+    This is a mock result for demonstration.
+
+    2. Example Result 2
+    https://example.com/result2
+    Configure TAVILY_API_KEY for real results.
+
+    Note: Set environment variable TAVILY_API_KEY for real search results.
+    Get free API key at https://tavily.com
+
+  # ============================================================
+  # Logging Chat Model
+  # ============================================================
+  logging_chat_model.error_template: "[LLM error: %s]"
+
+  # ============================================================
+  # Agent (execute loop messages)
+  # ============================================================
+  agent.llm_error: "LLM error: %s"
+  agent.max_iterations: "Maximum iterations reached"
+  agent.stuck: "Stuck-state detected — repeated identical tool calls"
+  agent.hook_cancelled: "Hook cancelled: %s"
+
+  # ============================================================
+  # Agent Service
+  # ============================================================
+  agent_service.default_system_prompt: "You are a helpful general agent. Use the selected tools and skills when they are relevant, and explain important results clearly."
+  agent_service.demo_system_prompt: "You are a highly capable and secure assistant. Always verify actions with the user when using tools."
+  agent_service.tools_section_header: "Selected tools:"
+  agent_service.skills_section_header: "Selected skills:"
+  agent_service.no_tools: "- No tools selected."
+  agent_service.no_skills: "- No skills selected."
+
+  # ============================================================
+  # Agent Skills Plugin (XML injection)
+  # ============================================================
+  agent_skills_plugin.use_skill_search: "Use the skill_search tool to search and activate skills instead of referring to the XML above directly."
+  agent_skills_plugin.no_skills: "No skills are currently available."
+  agent_skills_plugin.error_not_found: "Error: Skill '%s' not found.\nAvailable skills: %s"

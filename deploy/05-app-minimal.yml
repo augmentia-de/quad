@@ -1,0 +1,57 @@
+# 05-app-minimal.yml — Minimaler Docker-Stack (Native Binary + Nginx)
+#
+# Contains only: Quarkus Backend (nativ, SQLite) + Nginx Frontend.
+# Kein PostgreSQL, Redis, Kafka, Keycloak, OTel, MCP.
+# Perfect for 1GB VM (RSS < 200 MB).
+#
+# Starten:
+#   ./scripts/start.sh up minimal --profile cloud
+#
+# Oder direkt:
+#   docker compose -f deploy/05-app-minimal.yml up -d
+#
+# Voraussetzung: Native Binary gebaut
+#   ./scripts/build.sh --profile cloud --native
+
+networks:
+  llm-net:
+
+services:
+  quarkus-backend:
+    build:
+      context: ..
+      dockerfile: quad-quarkus/src/main/docker/Dockerfile.native
+    container_name: quad-backend
+    ports:
+      - "8080:8080"
+    environment:
+      QUARKUS_PROFILE: cloud
+      QUARKUS_HTTP_PORT: "8080"
+      QUARKUS_HTTP_HOST: "0.0.0.0"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      QUAD_MCP_ENABLED: "false"
+    volumes:
+      - quad-data:/work/data
+    restart: unless-stopped
+    networks:
+      - llm-net
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: quad-ui/docker/frontend.Dockerfile
+    container_name: quad-frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-minimal.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - quarkus-backend
+    restart: unless-stopped
+    networks:
+      - llm-net
+
+volumes:
+  quad-data:

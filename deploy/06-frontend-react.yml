@@ -1,0 +1,22 @@
+# 06-frontend-react.yml — React Web UI
+# Starten: ./stack.sh frontend
+#
+# Dependencies: Layer 5 (App-Backends, in addition to the OIDC realm)
+
+networks:
+  llm-net:
+    external: true
+
+services:
+  react-web-ui:
+    build:
+      context: ..
+      dockerfile: quad-ui/docker/frontend.Dockerfile
+    container_name: react-web-ui
+    ports:
+      - "80:80"
+    environment:
+      # Frontend-Env-Variablen (Build-time via Vite)
+      VITE_QUARKUS_URL: http://localhost:8086
+    networks:
+      - llm-net

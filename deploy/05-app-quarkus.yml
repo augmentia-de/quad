@@ -1,0 +1,66 @@
+# 05-app-quarkus.yml — Quarkus LangChain4j Backend
+# Starten: ./stack.sh quarkus
+#
+# Dependencies: Layer 1 (01-infrastructure), Layer 3 (03-identity-keycloak),
+#                 Layer 4 (04-mcp-servers)
+# Startup order is resolved via stack.sh, so each file remains individually deployable.
+# mcp-servers ist ausschließlich in 04-mcp-servers.yml definiert (kein Duplikat hier).
+
+networks:
+  llm-net:
+    external: true
+
+services:
+  quarkus-backend:
+    build:
+      context: ../quad-quarkus
+      dockerfile: src/main/docker/Dockerfile.jvm
+    container_name: quarkus-backend
+    ports:
+      - "8086:8086"
+    environment:
+      # ── Profil (dev/prod/cloud) ───────────────────────────
+      QUARKUS_PROFILE: ${QUARKUS_PROFILE:-prod}
+      # ── HTTP ───────────────────────────────────────────────
+      QUARKUS_HTTP_PORT: "8086"
+      QUARKUS_HTTP_HOST: "0.0.0.0"
+      # ── Datasource ────────────────────────────────────────
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres-pgvector:5432/${POSTGRES_DB:-quad}
+      QUARKUS_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      QUARKUS_DATASOURCE_DB_KIND: postgresql
+      # ── Redis ──────────────────────────────────────────────
+      QUARKUS_REDIS_HOSTS: redis://redis:6379
+      # ── Kafka ──────────────────────────────────────────────
+      # App-eigener Inbound-Consumer liest diesen Wert
+      # (quad.messaging.kafka.inbound.bootstrap-servers).
+      QUAD_MESSAGING_KAFKA_INBOUND_BOOTSTRAP_SERVERS: kafka:9092
+      # SmallRye kafka.bootstrap.servers (gilt auch ohne %kafka-Profil)
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # ── OpenTelemetry → Collector (OTLP HTTP, Port 4318) ──
+      QUARKUS_OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+      QUARKUS_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318
+      QUARKUS_OTEL_SERVICE_NAME: quad-quarkus
+      # ── LLM ───────────────────────────────────────────────
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      # ── MCP ────────────────────────────────────────────────
+      QUAD_MCP_ENABLED: "true"
+      QUAD_MCP_CONFIG_PATH: /workspace/mcp-config.json
+      # ── OIDC (Keycloak) ────────────────────────────────────
+      # Realm "quarkus" — siehe deploy/keycloak/quarkus-realm.json
+      QUARKUS_OIDC_ENABLED: ${OIDC_ENABLED:-true}
+      QUARKUS_OIDC_AUTH_SERVER_URL: http://keycloak:8180/realms/quarkus
+      QUARKUS_OIDC_CLIENT_ID: quad-ui
+      # quad-ui ist ein Public Client (PKCE) ohne Client-Secret
+      QUARKUS_OIDC_CREDENTIALS_SECRET: ${OIDC_CLIENT_SECRET:-}
+      # ── Mail (optional) ────────────────────────────────────
+      EXTERNAL_SMTP_HOST: ${EXTERNAL_SMTP_HOST:-}
+      EXTERNAL_SMTP_PORT: ${EXTERNAL_SMTP_PORT:-}
+      EXTERNAL_MAIL_USER: ${EXTERNAL_MAIL_USER:-}
+      EXTERNAL_MAIL_PASS: ${EXTERNAL_MAIL_PASS:-}
+    volumes:
+      - ../config/mcp-config.json:/workspace/mcp-config.json:ro
+    networks:
+      - llm-net

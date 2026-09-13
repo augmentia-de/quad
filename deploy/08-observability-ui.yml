@@ -1,0 +1,54 @@
+# 08-observability-ui.yml — OPTIONAL: Loki + Promtail Logs (Layer 8)
+# Starten: ./stack.sh obs-ui
+#
+# OPTIONAL & SEPARATE as a standalone layer: provides ONLY Log-Aggregation
+# (Loki + Promtail). no own Grafana — visualization is via die
+# bestehende Layer-2-Grafana (02-observability.yml, Port 3001).
+#
+# Wenn "obs-ui" (Loki) UND "obs" (Grafana) aktiv sind, zeigt die Layer-2-Grafana
+# Loki automatisch als Datenquelle an (Provisioning in 02-observability.yml).
+# Ist Loki nicht aktiv, ist die Datasource in Grafana lediglich offline — das
+# does not interfere.
+#
+#   - Loki     → speichert & queryt Logs (Port 3100, intern)
+#   - Promtail → collects container logs via the docker socket
+
+networks:
+  llm-net:
+    external: true
+
+volumes:
+  loki_data:
+
+services:
+  # ==========================================================
+  #  Loki — Log-Speicher & Query
+  # ==========================================================
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./helper-config/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - llm-net
+
+  # ==========================================================
+  #  Promtail — Docker-Log-Collector
+  # ==========================================================
+  promtail:
+    image: grafana/promtail:3.1.1
+    container_name: promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail-config.yaml
+    volumes:
+      - ./helper-config/promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    networks:
+      - llm-net

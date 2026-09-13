@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quad.augmentia.de/schemas/workflow.json",
+  "title": "Workflow",
+  "description": "Definition of a QUAD workflow (POST /api/ui/workflows). Nodes are executed sequentially over directed edges; each node produces an LLM output that is passed on as context to subsequent nodes.",
+  "type": "object",
+  "required": ["name", "nodes", "edges"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Vom Backend vergebenes Workflow-ID (optional bei POST)."
+    },
+    "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/node" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" }
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "title": "WorkflowNode",
+      "required": ["id", "type", "title"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique node ID within the workflow" },
+        "type": {
+          "type": "string",
+          "description": "Controls the backend executor prompt",
+          "enum": ["agent", "messaging-in", "messaging-out", "loop", "conditional", "nested-workflow", "async", "fork", "join"],
+          "examples": ["agent"]
+        },
+        "title": { "type": "string", "description": "Task description for the node" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "running", "waiting", "completed", "failed"],
+          "default": "pending",
+          "description": "Status managed by the UI, not evaluated by the backend"
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "config": {
+          "type": "object",
+          "description": "Optional node-specific configuration (e.g. prompt: custom system prompt)",
+          "additionalProperties": true
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "title": "WorkflowEdge",
+      "required": ["id", "source", "target"],
+      "properties": {
+        "id": { "type": "string" },
+        "source": { "type": "string", "description": "ID of the source node" },
+        "target": { "type": "string", "description": "ID of the target node (receives the source node's output)" },
+        "input": { "type": "object", "description": "Legacy single input mapping" },
+        "inputs": { "type": "array", "items": { "type": "object" }, "description": "List of input mappings from arbitrary source nodes" },
+        "joinPolicy": { "type": "string", "enum": ["all", "any"], "default": "all", "description": "Join behaviour: wait for all (all) or first (any) predecessors" }
+      }
+    }
+  },
+  "examples": [
+    {
+      "name": "Mini Research Workflow",
+      "nodes": [
+        { "id": "n1", "type": "research", "title": "What is 2+2?", "status": "pending" },
+        { "id": "n2", "type": "review", "title": "Verify the previous answer is correct", "status": "pending" }
+      ],
+      "edges": [
+        { "id": "e1", "source": "n1", "target": "n2" }
+      ]
+    }
+  ]
+}

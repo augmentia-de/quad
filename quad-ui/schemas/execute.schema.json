@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quad.augmentia.de/schemas/execute.json",
+  "title": "Execute",
+  "description": "Request/response contracts for task and workflow execution.",
+  "oneOf": [
+    { "$ref": "#/$defs/executeRequest" },
+    { "$ref": "#/$defs/uiExecutionResult" },
+    { "$ref": "#/$defs/workflowNodeResult" },
+    { "$ref": "#/$defs/workflowExecutionResult" }
+  ],
+  "$defs": {
+    "executeRequest": {
+      "type": "object",
+      "title": "ExecuteRequest",
+      "required": ["task"],
+      "properties": {
+        "task": { "type": "string", "minLength": 1, "maxLength": 10000 }
+      }
+    },
+    "uiExecutionResult": {
+      "type": "object",
+      "title": "UiExecutionResult",
+      "description": "Antwort von POST /api/ui/execute",
+      "required": ["sessionId", "success", "result", "toolCount", "durationMs", "costLimit", "model"],
+      "properties": {
+        "sessionId": { "type": "string" },
+        "success": { "type": "boolean" },
+        "result": { "type": "string" },
+        "toolCount": { "type": "integer", "minimum": 0 },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "costLimit": { "type": "number" },
+        "model": { "type": "string" }
+      }
+    },
+    "workflowNodeResult": {
+      "type": "object",
+      "title": "WorkflowNodeResult",
+      "required": ["nodeId", "type", "title", "output"],
+      "properties": {
+        "nodeId": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "output": { "type": "string" }
+      }
+    },
+    "workflowExecutionResult": {
+      "type": "object",
+      "title": "WorkflowExecutionResult",
+      "description": "Antwort von POST /api/ui/workflows/{id}/execute",
+      "required": ["workflowId", "success", "results", "durationMs"],
+      "properties": {
+        "workflowId": { "type": "string" },
+        "success": { "type": "boolean" },
+        "results": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workflowNodeResult" }
+        },
+        "durationMs": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

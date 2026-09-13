@@ -1,0 +1,901 @@
+/* ═══ QUAD Studio · WorkflowComposer — Warm-Dark Editorial ═══ */
+
+.workflow-composer { padding: 0; }
+
+.workflow-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.workflow-name-row label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.workflow-name-row input {
+  padding: 0.4rem 0.6rem;
+  min-width: 280px;
+}
+
+.workflow-save-state {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--accent-hover);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-s);
+  padding: 0.2rem 0.55rem;
+}
+
+.save-message {
+  color: var(--accent-hover);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-left-width: 3px;
+  border-radius: var(--radius-s);
+  padding: 0.45rem 0.75rem;
+  margin-bottom: 0.85rem;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+}
+
+/* ─── Toolbar ───────────────────────────────────────────────── */
+
+.toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.toolbar button {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.42rem 0.8rem;
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: transparent;
+}
+
+.toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.toolbar button.messaging {
+  border-color: var(--accent-border);
+  color: var(--accent-hover);
+}
+
+.toolbar button.messaging:hover:not(:disabled) {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+
+.toolbar button.control-flow {
+  border-color: rgba(213, 162, 77, 0.45);
+  color: var(--warn);
+}
+
+.toolbar button.control-flow:hover:not(:disabled) {
+  background: var(--warn-bg);
+  border-color: var(--warn);
+}
+
+.toolbar select { background: var(--bg); font-size: 0.8rem; }
+
+.toolbar button:last-child {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #101a15;
+  font-weight: 650;
+}
+
+.toolbar button:last-child:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+.toolbar-separator {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  margin: 0 0.15rem;
+}
+
+/* ─── Start-Task ────────────────────────────────────────────── */
+
+.start-task-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+
+.start-task-row label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.start-task-row input, .start-task-row textarea { flex: 1; }
+
+.start-task-row textarea {
+  resize: none;
+  overflow: hidden;
+  min-height: 1.6em;
+  line-height: 1.45;
+  padding: 0.25rem 0.5rem;
+}
+
+.start-task-hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.field-hint {
+  margin: 0.3rem 0 0;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.mapping-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.mapping-row input { flex: 1; }
+
+.mapping-arrow {
+  color: var(--text-dim);
+  font-family: var(--mono);
+}
+
+.mapping-row .danger.small,
+button.small {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  color: var(--text);
+}
+
+button.small:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text-h); }
+
+.mapping-row .danger.small {
+  color: var(--danger);
+  border-color: rgba(208, 131, 103, 0.55);
+}
+
+.mapping-row .danger.small:hover:not(:disabled) {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+
+/* ─── Messaging Channels ────────────────────────────────────── */
+
+.messaging-channels-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-left-width: 3px;
+  border-radius: var(--radius-s);
+  margin-bottom: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.messaging-channels-label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-hover);
+  white-space: nowrap;
+}
+
+.messaging-channels-bar button.channel-btn {
+  background: transparent;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-s);
+  padding: 0.22rem 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--accent-hover);
+}
+
+.messaging-channels-bar button.channel-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--accent);
+}
+
+/* ─── Canvas & Nodes (React Flow) ────────────────────────────── */
+
+.workflow-editor {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 300px;
+  overflow: hidden;
+  position: relative;
+}
+
+.wf-canvas-container {
+  height: 600px;
+  width: 100%;
+}
+
+.wf-canvas-container .react-flow__node {
+  cursor: grab;
+  touch-action: none;
+}
+
+.wf-canvas-container .react-flow__node.selected .wf-node {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.wf-node {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  padding: 0.5rem 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-left-width: 3px;
+  border-radius: var(--radius-s);
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  width: 180px;
+  min-height: 60px;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+}
+
+.wf-node:hover { background: var(--surface-2); }
+
+.wf-node.agent            { border-left-color: var(--accent); }
+.wf-node.messaging-in     { border-left-color: var(--accent); }
+.wf-node.messaging-out    { border-left-color: var(--danger); }
+.wf-node.loop             { border-left-color: var(--warn); }
+.wf-node.conditional      { border-left-color: var(--warn); }
+.wf-node.nested-workflow  { border-left-color: var(--accent); border-style: dashed; }
+.wf-node.async            { border-left-color: var(--accent); }
+.wf-node.fork             { border-left-color: var(--accent); }
+.wf-node.join             { border-left-color: var(--warn); }
+
+.wf-node.running {
+  animation: wf-node-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes wf-node-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+.wf-node.completed { border-color: var(--accent); }
+.wf-node.failed    { border-color: var(--danger); background: var(--danger-bg); }
+
+.wf-node-title {
+  font-weight: 650;
+  font-size: 0.82rem;
+  text-align: center;
+  color: var(--text-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.wf-node-agent {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--text-dim);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wf-node-status {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.wf-node.pending .wf-node-status { color: var(--text-dim); }
+.wf-node.completed .wf-node-status { color: var(--accent-hover); }
+.wf-node.running .wf-node-status { color: var(--warn); }
+.wf-node.failed .wf-node-status { color: var(--danger); }
+
+.wf-handle {
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent, #4e9);
+  opacity: 0.6;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.wf-handle:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.wf-handle-target {
+  left: -6px !important;
+}
+
+.wf-handle-source {
+  right: -6px !important;
+}
+
+/* Disable React Flow's background selection behavior for the editor */
+.wf-canvas-container .react-flow__selection { background: transparent; }
+
+.workflow-progress {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border: 1px solid rgba(213, 162, 77, 0.4);
+  border-left-width: 3px;
+  border-radius: var(--radius-s);
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+
+.workflow-config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 1rem;
+  margin-top: 1.4rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--border);
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  background: var(--surface);
+}
+
+.panel h3 { color: var(--text-h); margin-top: 0; }
+
+.node-editor.panel { border-top: 3px solid var(--accent); }
+
+.form-group { margin-bottom: 0.85rem; }
+
+.form-group label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 0.35rem;
+}
+
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%;
+  background: var(--bg);
+}
+
+.form-group textarea { min-height: 60px; resize: vertical; }
+
+.danger {
+  color: var(--danger);
+  border: 1px solid rgba(208, 131, 103, 0.55);
+  border-radius: var(--radius-s);
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+
+.danger:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.edge-editor table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.edge-editor th, .edge-editor td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.edge-editor th {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.edge-editor code { font-size: 0.72rem; }
+
+.run-result { margin-top: 1.25rem; }
+
+.run-result details {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--bg);
+}
+
+.node-summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-h);
+  font-size: 0.82rem;
+}
+
+.node-summary.completed { color: var(--accent-hover); }
+.node-summary.failed    { color: var(--danger); }
+.node-summary.running   { color: var(--warn); }
+
+.run-input, .run-output {
+  max-height: 200px;
+  overflow: auto;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  padding: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  margin: 0.3rem 0 0;
+}
+
+.run-input {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+.run-start-task {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+  padding: 0.45rem 0.65rem;
+  background: var(--warn-bg);
+  border: 1px solid rgba(213, 162, 77, 0.4);
+  border-left-width: 3px;
+  border-radius: var(--radius-s);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+}
+
+.run-start-task-label {
+  font-weight: 600;
+  color: var(--warn);
+  white-space: nowrap;
+}
+
+.run-start-task-value { color: var(--text-h); white-space: pre-wrap; }
+
+.run-summary { margin: 0.75rem 0; }
+
+.workflow-details { margin-top: 1rem; }
+
+.workflow-details pre { max-height: 200px; }
+
+/* ─── Saved workflows list ──────────────────────────────────── */
+
+.workflow-list { margin-top: 1.6rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+
+.workflow-list .hint {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  font-style: italic;
+  margin: 0 0 0.6rem;
+}
+
+.workflow-list table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+
+.workflow-list th, .workflow-list td {
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.workflow-list th {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.workflow-list tbody tr { cursor: pointer; transition: background-color 0.12s ease; }
+.workflow-list tbody tr:hover { background: var(--surface-2); }
+
+.workflow-list .run {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #101a15;
+  background: var(--accent);
+  border-color: var(--accent);
+  border-radius: var(--radius-s);
+  padding: 0.28rem 0.6rem;
+  cursor: pointer;
+  margin-right: 0.35rem;
+}
+
+.workflow-list .run:hover:not(:disabled) { background: var(--accent-hover); }
+
+.workflow-list .danger {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.6rem;
+}
+
+.workflow-list .empty-state, .workflow-list .error-state {
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+/* ─── JSON-Schema-Popup ─────────────────────────────────────── */
+
+.schema-popup-hint {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.schema-popup-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.schema-validation {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-s);
+  margin-bottom: 0.75rem;
+}
+
+.schema-validation.ok {
+  color: var(--accent-hover);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+}
+
+.schema-validation.bad {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border: 1px solid rgba(208, 131, 103, 0.45);
+}
+
+/* ─── Edge Input Sources ─────────────────────────────────────── */
+
+.source-button {
+  max-width: 340px;
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  color: var(--text);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.12s ease, color 0.12s ease;
+}
+
+.source-button:hover {
+  border-color: var(--accent);
+  color: var(--text-h);
+}
+
+.edge-inputs-popup {
+  width: 560px;
+}
+
+.edge-inputs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.9rem;
+}
+
+.edge-input-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  padding: 0.5rem 0.6rem;
+  background: var(--bg);
+}
+
+.edge-input-row-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.edge-input-name {
+  flex: 1;
+  font-weight: 600;
+  color: var(--text-h);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edge-input-row-head select,
+.edge-input-add select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  color: var(--text);
+  padding: 0.25rem 0.4rem;
+  font-size: 0.78rem;
+}
+
+.edge-input-path {
+  width: 100%;
+  margin-top: 0.4rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  color: var(--text);
+  padding: 0.3rem 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.edge-input-path-item {
+  margin-bottom: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  padding: 0.4rem;
+  background: var(--surface);
+}
+
+.edge-input-path-item .edge-input-path {
+  margin-top: 0;
+  flex: 1;
+}
+
+.edge-input-path-item .schema-tree-open {
+  flex-shrink: 0;
+}
+
+.path-add {
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-s);
+  color: var(--text-dim);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.path-add:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.path-remove {
+  flex-shrink: 0;
+  border: 1px solid rgba(208, 131, 103, 0.5);
+  background: transparent;
+  color: var(--danger);
+  border-radius: var(--radius-s);
+  width: 1.5rem;
+  height: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.path-remove:hover {
+  background: var(--danger-bg);
+}
+
+.source-count {
+  margin-left: 0.4rem;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 50%;
+  font-size: 0.68rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.25rem;
+}
+
+.edge-input-add {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border);
+}
+
+.edge-input-add .edge-input-path {
+  flex: 1;
+  margin-top: 0;
+  min-width: 140px;
+}
+
+.edge-input-add button,
+.schema-popup-actions button {
+  background: var(--accent);
+  border: none;
+  color: var(--accent-ink, #1a1a17);
+  border-radius: var(--radius-s);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.edge-input-add button:hover,
+.schema-popup-actions button:hover {
+  filter: brightness(1.05);
+}
+
+.edge-input-row .danger,
+.schema-popup-actions .danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid rgba(208, 131, 103, 0.5);
+}
+
+.edge-input-row .danger:hover,
+.schema-popup-actions .danger:hover {
+  background: var(--danger-bg);
+}
+
+/* ─── Schema-Pfad-Baum ───────────────────────────────────────── */
+
+.edge-input-path-block {
+  margin-top: 0.4rem;
+}
+
+.edge-input-path-head {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.edge-input-path-head .edge-input-path {
+  margin-top: 0;
+  flex: 1;
+}
+
+.schema-tree-open {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  color: var(--text);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.schema-tree-open:hover {
+  border-color: var(--accent);
+  color: var(--text-h);
+}
+
+.schema-tree {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  background: var(--bg);
+  max-height: 220px;
+  overflow: auto;
+  font-size: 0.78rem;
+}
+
+.schema-tree ul.schema-tree-children {
+  list-style: none;
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.schema-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: var(--radius-s);
+}
+
+.schema-tree-row.selected {
+  background: var(--accent-bg);
+}
+
+.schema-tree-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  width: 1.1rem;
+  text-align: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.schema-tree-toggle.placeholder {
+  display: inline-block;
+  width: 1.1rem;
+}
+
+.schema-tree-label {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  padding: 0.18rem 0.3rem;
+  flex: 1;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.schema-tree-label:hover {
+  color: var(--text-h);
+}
+
+.schema-tree-key {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schema-tree-type {
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  flex-shrink: 0;
+}

@@ -1,0 +1,94 @@
+{{- if .Values.quarkus.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "quad.fullname" . }}-quarkus
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "quad.labels" . | nindent 4 }}
+    app.kubernetes.io/component: quarkus
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.quarkus.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "quad.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: quarkus
+  template:
+    metadata:
+      labels:
+        {{- include "quad.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: quarkus
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: quarkus
+          image: "{{ .Values.quarkus.image.repository }}:{{ .Values.quarkus.image.tag }}"
+          imagePullPolicy: {{ .Values.quarkus.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.quarkus.env.QUARKUS_HTTP_PORT | int }}
+              protocol: TCP
+          env:
+            {{- range $key, $value := .Values.quarkus.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          {{- if .Values.secrets.create }}
+          envFrom:
+            - secretRef:
+                name: {{ include "quad.fullname" . }}-secrets
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.quarkus.resources | nindent 12 }}
+        {{- if .Values.mcp.enabled }}
+        - name: mcp
+          image: "{{ .Values.mcp.image.repository }}:{{ .Values.mcp.image.tag }}"
+          ports:
+            - name: mcp-3001
+              containerPort: 3001
+            - name: mcp-3002
+              containerPort: 3002
+            - name: mcp-3003
+              containerPort: 3003
+            - name: mcp-3004
+              containerPort: 3004
+          resources:
+            {{- toYaml .Values.mcp.resources | nindent 12 }}
+        {{- end }}
+        {{- if .Values.postgresql.cloudSqlProxy.enabled }}
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
+          args:
+            - "--port={{ .Values.postgresql.cloudSqlProxy.port }}"
+            - "{{ .Values.postgresql.cloudSqlProxy.instance }}"
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+        {{- end }}
+      {{- if .Values.postgresql.cloudSqlProxy.enabled }}
+      serviceAccountName: {{ include "quad.fullname" . }}-sa
+      {{- end }}
+{{- end }}

@@ -1,0 +1,3 @@
+Analysiere den Task und empfehle geeignete Werkzeuge.
+
+Task: {{task}}

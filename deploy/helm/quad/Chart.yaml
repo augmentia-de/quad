@@ -1,0 +1,14 @@
+apiVersion: v2
+name: quad
+description: QUAD Java - AI Agent Backend (Quarkus + MCP)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: QUAD Team
+keywords:
+  - ai
+  - agent
+  - quarkus
+  - mcp
+  - langchain4j

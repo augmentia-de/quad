@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quad.augmentia.de/schemas/agent.json",
+  "title": "Agent",
+  "description": "Definition eines QUAD-Agents (POST /api/ui/agents, GET /api/ui/agents)",
+  "type": "object",
+  "required": ["name", "description", "category", "model", "temperature", "maxTokens", "topP", "tools"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Vom Backend vergebenes Agent-ID. Pflicht bei PUT, optional bei POST.",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "description": { "type": "string", "maxLength": 2000 },
+    "category": { "type": "string", "examples": ["general", "research", "code"] },
+    "model": { "type": "string", "examples": ["deepseek/deepseek-v4-flash"] },
+    "temperature": { "type": "number", "minimum": 0, "maximum": 2, "default": 0.7 },
+    "maxTokens": { "type": "integer", "minimum": 1, "default": 4096 },
+    "topP": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 },
+    "tools": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Aktivierte Tool-Namen (z.B. readFile, writeFile, webSearch). Leer = keine Tools."
+    },
+    "guardrails": {
+      "type": "object",
+      "properties": {
+        "input": { "type": "array", "items": { "type": "string" } },
+        "output": { "type": "array", "items": { "type": "string" } }
+      },
+      "default": { "input": [], "output": [] }
+    }
+  },
+  "examples": [
+    {
+      "name": "Research Agent",
+      "description": "Informationen recherchieren und zusammenfassen",
+      "category": "research",
+      "model": "deepseek/deepseek-v4-flash",
+      "temperature": 0.3,
+      "maxTokens": 2048,
+      "topP": 0.9,
+      "tools": ["webSearch"],
+      "guardrails": { "input": [], "output": [] }
+    }
+  ]
+}

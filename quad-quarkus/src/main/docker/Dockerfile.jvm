@@ -1,0 +1,36 @@
+FROM maven:3.9-eclipse-temurin-21 AS build
+USER root
+RUN mkdir -p /project
+WORKDIR /project
+
+COPY pom.xml .
+
+# All reactor modules (must match root pom.xml modules)
+COPY quad-core/pom.xml quad-core/pom.xml
+COPY quad-core/src quad-core/src
+COPY quad-workflow-core/pom.xml quad-workflow-core/pom.xml
+COPY quad-workflow-core/src quad-workflow-core/src
+COPY quad-tool-builtin/pom.xml quad-tool-builtin/pom.xml
+COPY quad-tool-builtin/src quad-tool-builtin/src
+COPY quad-tool-mcp/pom.xml quad-tool-mcp/pom.xml
+COPY quad-tool-mcp/src quad-tool-mcp/src
+COPY quad-sandbox-docker/pom.xml quad-sandbox-docker/pom.xml
+COPY quad-sandbox-docker/src quad-sandbox-docker/src
+COPY quad-search-elasticsearch/pom.xml quad-search-elasticsearch/pom.xml
+COPY quad-search-elasticsearch/src quad-search-elasticsearch/src
+COPY quad-search-pgvector/pom.xml quad-search-pgvector/pom.xml
+COPY quad-search-pgvector/src quad-search-pgvector/src
+COPY quad-quarkus/pom.xml quad-quarkus/pom.xml
+COPY quad-quarkus/src quad-quarkus/src
+COPY quad-examples/pom.xml quad-examples/pom.xml
+COPY quad-examples/src quad-examples/src
+
+RUN mvn install -DskipTests -q -pl quad-quarkus -am
+
+FROM eclipse-temurin:21-jre
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /work
+COPY --from=build /project/quad-quarkus/target/quarkus-app/ /work/
+EXPOSE 8086
+ENV QUARKUS_HTTP_HOST=0.0.0.0
+CMD ["java", "-jar", "quarkus-run.jar"]

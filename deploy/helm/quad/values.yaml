@@ -1,0 +1,99 @@
+# ── Shared Defaults ──────────────────────────────────────────
+# Überschreibungen via values-{profile}.yaml oder --set
+
+# ---- Global ----
+global:
+  imagePullSecrets: []
+  storageClass: standard
+
+# ---- Namespace ----
+namespace:
+  create: true
+  name: quad
+
+# ---- Quarkus Backend ----
+quarkus:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: gcr.io/PROJECT_ID/quad-quarkus
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  env:
+    QUARKUS_PROFILE: cloud
+    QUARKUS_HTTP_PORT: "8080"
+  secrets: []
+
+# ---- MCP Servers (Sidecar) ----
+mcp:
+  enabled: false
+  image:
+    repository: gcr.io/PROJECT_ID/quad-mcp
+    tag: latest
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ---- Frontend ----
+frontend:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: gcr.io/PROJECT_ID/quad-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ---- Ingress ----
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: quad.example.com
+  tls: []
+
+# ---- HPA (Horizontal Pod Autoscaler) ----
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# ---- PostgreSQL (Cloud SQL Sidecar) ----
+postgresql:
+  enabled: false
+  cloudSqlProxy:
+    enabled: false
+    instance: ""  # project:region:instance
+
+# ---- Secrets ----
+secrets:
+  provider: kubernetes  # kubernetes | gcp-secret-manager
+  create: true
+  data: {}
+    # OPENAI_API_KEY: ""
+    # POSTGRES_PASSWORD: ""

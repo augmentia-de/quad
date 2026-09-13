@@ -1,0 +1,79 @@
+{
+  "realm": "lab",
+  "enabled": true,
+  "displayName": "QUAD MCP Lab",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+
+  "roles": {
+    "realm": [
+      { "name": "file-reader", "description": "Can read files via MCP" },
+      { "name": "file-writer", "description": "Can write files via MCP" }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "mcp-server-app",
+      "name": "MCP Server",
+      "description": "Confidential client for the MCP server side",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "secret-key",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "redirectUris": [],
+      "webOrigins": [],
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "mcp-client-app",
+      "name": "MCP Client",
+      "description": "Confidential client that calls the MCP server",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "client-secret-key",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "redirectUris": [],
+      "webOrigins": [],
+      "protocol": "openid-connect",
+      "fullScopeAllowed": false
+    }
+  ],
+
+  "users": [
+    {
+      "username": "reader",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Reader",
+      "lastName": "User",
+      "email": "reader@quad.local",
+      "credentials": [
+        { "type": "password", "value": "reader", "temporary": false }
+      ],
+      "realmRoles": ["file-reader"]
+    },
+    {
+      "username": "writer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Writer",
+      "lastName": "User",
+      "email": "writer@quad.local",
+      "credentials": [
+        { "type": "password", "value": "writer", "temporary": false }
+      ],
+      "realmRoles": ["file-reader", "file-writer"]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+# 04-mcp-servers.yml — MCP Tool Server(s)
+# Starten: ./stack.sh mcp
+#
+# Dependencies: Layer 3 (03-identity-keycloak) for MCP token auth
+
+networks:
+  llm-net:
+    external: true
+
+services:
+  mcp-servers:
+    build:
+      context: ../mcp
+      dockerfile: Dockerfile
+    container_name: mcp-servers
+    ports:
+      - "3001:3001"   # filesystem
+      - "3002:3002"   # memory
+      - "3003:3003"   # git
+      - "3004:3004"   # fetch
+    volumes:
+      # Builtin-Workspace (start-backend.sh Default von QUAD_WORKSPACE) auf DEN GLEICHEN
+      # absoluten Pfad im Container gemirrort → MCP-Filesystem rootet exakt dort; absolute
+      # Agent host paths und Builtin-Tools match 1:1 (no path mapping needed).
+      - ../workspace/shared:/home/torsten/dev/my-projects/nooa/quad/workspace/shared:rw
+      - ../workspace:/home/torsten/dev/my-projects/nooa/quad/workspace:rw
+      - ../mcp/mcp-config.json:/home/torsten/dev/my-projects/nooa/quad/mcp/mcp-config.json:ro
+    restart: unless-stopped
+    networks:
+      - llm-net

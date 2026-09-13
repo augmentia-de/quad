@@ -1,0 +1,75 @@
+# ==========================================
+# Maven Build & Target Directories
+# ==========================================
+target/
+**/target/
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# ==========================================
+# Maven Wrapper & Binaries
+# ==========================================
+.mvn/wrapper/maven-wrapper.jar
+*.class
+
+# ==========================================
+# IDE & Editor Configurations
+# ==========================================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.settings/
+.classpath
+.project
+bin/
+
+# VS Code / Cursor
+.vscode/
+.factorypath
+
+# NetBeans
+nbproject/private/
+build/
+
+# ==========================================
+# Logs, Reports & Temporary Files
+# ==========================================
+*.log
+logs/
+*.dump
+*.pivot
+hs_err_pid*
+replay_pid*
+
+# Code Coverage & Test Reports
+surefire-reports/
+failsafe-reports/
+jacoco.exec
+site/
+
+# ==========================================
+# Environment, Credentials & Local Configs
+# ==========================================
+.env
+*.env
+*.properties.local
+application-local.yml
+application-local.properties
+secrets/
+
+# ==========================================
+# Version Control & OS Meta Files
+# ==========================================
+.git/
+.gitignore
+.DS_Store
+Thumbs.db

@@ -1,0 +1,41 @@
+# Tempo Configuration — Distributed Tracing Backend
+# Receives OTel spans vom OTel Collector via OTLP gRPC
+
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal
+
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: quad-local
+  storage:
+    path: /var/tempo/generator/wal
+    remote_write:
+      - url: http://prometheus:9090/api/v1/write
+        send_exemplars: true
+  traces_storage:
+    path: /var/tempo/generator/traces
+  ring:
+    kvstore:
+      store: inmemory
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [service-graph, span-metrics]
