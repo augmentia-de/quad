@@ -60,14 +60,20 @@ public class PromptAssembler {
     public List<ChatMessage> buildInitialMessages(String prompt, AgentSessionState state,
                                                   String systemPrompt, boolean jsonInput,
                                                   String userMessageTemplate,
-                                                  String jsonOutputSchema) {
+                                                  String jsonOutputSchema,
+                                                  String cachePrefix) {
         String stateDoc = docExtractor != null ? docExtractor.doc(Object.class, state) : "snapshot";
 
         List<ToolSpecification> specs = toolRegistry != null
                 ? toolRegistry.getSpecifications().stream().map(s -> (ToolSpecification) s).toList()
                 : List.of();
 
+        // Static cache prefix (Block A) goes FIRST, byte-identical across agents,
+        // so the provider's prefix-cache serves the shared template content.
         StringBuilder sysMsgBuilder = new StringBuilder();
+        if (cachePrefix != null && !cachePrefix.isBlank()) {
+            sysMsgBuilder.append(cachePrefix).append("\n\n");
+        }
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             sysMsgBuilder.append(systemPrompt).append("\n\n");
         }

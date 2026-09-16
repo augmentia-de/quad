@@ -66,6 +66,28 @@ public class DynamicSubAgentTool implements ToolMethod {
     private final ToolSpecification spec;
     private HookRegistry hookRegistry;
     private AgentEventPublisher eventPublisher;
+    /** Optional shared cache prefix (Block A), prepended to the sub-agent's
+     *  system message so it is byte-identical across sub-agent invocations. */
+    private String cachePrefix;
+    /** Whether sub-agents created by this tool inherit the parent's active
+     *  cache prefix automatically (default true; opt out per tool). */
+    private boolean inheritCachePrefix = true;
+
+    public void setCachePrefix(String cachePrefix) {
+        this.cachePrefix = cachePrefix;
+    }
+
+    public String getCachePrefix() {
+        return cachePrefix;
+    }
+
+    public void setInheritCachePrefix(boolean inheritCachePrefix) {
+        this.inheritCachePrefix = inheritCachePrefix;
+    }
+
+    public boolean inheritsCachePrefix() {
+        return inheritCachePrefix;
+    }
 
     public void setHookRegistry(HookRegistry hookRegistry) {
         this.hookRegistry = hookRegistry;
@@ -215,13 +237,20 @@ public class DynamicSubAgentTool implements ToolMethod {
 
             @Override
             public List<ChatMessage> initialMessages(String prompt, AgentSessionState state) {
-                String systemPrompt = SUB_AGENT_SYSTEM_PROMPT
-                        + "\n\nAVAILABLE TOOLS:\n" + toolList;
+                StringBuilder systemPrompt = new StringBuilder();
+                // Shared cache prefix (Block A) goes FIRST, byte-identical across
+                // sub-agent invocations; the anonymous agent bypasses PromptAssembler,
+                // so the prefix is prepended here explicitly.
+                if (cachePrefix != null && !cachePrefix.isBlank()) {
+                    systemPrompt.append(cachePrefix).append("\n\n");
+                }
+                systemPrompt.append(SUB_AGENT_SYSTEM_PROMPT)
+                        .append("\n\nAVAILABLE TOOLS:\n").append(toolList);
                 if (!skillBlock.isEmpty()) {
-                    systemPrompt += "\n\n" + skillBlock;
+                    systemPrompt.append("\n\n").append(skillBlock);
                 }
                 return List.of(
-                        new SystemMessage(systemPrompt),
+                        new SystemMessage(systemPrompt.toString()),
                         new dev.langchain4j.data.message.UserMessage(prompt));
             }
         };

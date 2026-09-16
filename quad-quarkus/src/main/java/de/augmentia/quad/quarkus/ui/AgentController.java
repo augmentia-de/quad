@@ -261,6 +261,7 @@ public class AgentController {
         return Response.ok(state.workflows().values().stream().map(w -> Map.<String, Object>of(
             "id", w.id, "name", w.name, "nodeCount", w.nodes.size(),
             "edgeCount", w.edges.size(), "initialTask", w.initialTask != null ? w.initialTask : "",
+            "prefixCaching", w.prefixCaching != null ? w.prefixCaching : Boolean.FALSE,
             "createdAt", w.createdAt, "updatedAt", w.updatedAt
         )).toList()).build();
     }
@@ -269,10 +270,17 @@ public class AgentController {
     public Response getWorkflow(@PathParam("id") String id) {
         var workflow = state.workflows().get(id);
         if (workflow == null) return Response.status(404).entity(Map.of("error", "Workflow not found")).build();
-        return Response.ok(Map.of("id", workflow.id, "name", workflow.name,
-            "nodes", workflow.nodes, "edges", workflow.edges,
-            "initialTask", workflow.initialTask != null ? workflow.initialTask : "",
-            "createdAt", workflow.createdAt, "updatedAt", workflow.updatedAt)).build();
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("id", workflow.id);
+        body.put("name", workflow.name);
+        body.put("nodes", workflow.nodes);
+        body.put("edges", workflow.edges);
+        body.put("initialTask", workflow.initialTask != null ? workflow.initialTask : "");
+        body.put("cachePrefix", workflow.cachePrefix);
+        body.put("prefixCaching", workflow.prefixCaching != null ? workflow.prefixCaching : Boolean.FALSE);
+        body.put("createdAt", workflow.createdAt);
+        body.put("updatedAt", workflow.updatedAt);
+        return Response.ok(body).build();
     }
 
     @POST @Path("/workflows")
@@ -286,6 +294,8 @@ public class AgentController {
             request.nodes != null ? request.nodes : List.of(),
             request.edges != null ? request.edges : List.of(),
             request.initialTask,
+            request.cachePrefix,
+            request.prefixCaching != null ? request.prefixCaching : Boolean.FALSE,
             now, now);
         state.putWorkflow(workflow);
         state.incMetrics();
@@ -299,20 +309,30 @@ public class AgentController {
     public Response updateWorkflow(@PathParam("id") String id, ApiDtos.WorkflowCreateRequest request) {
         var existing = state.workflows().get(id);
         if (existing == null) return Response.status(404).entity(Map.of("error", "Workflow not found")).build();
+        String newPrefix = request.cachePrefix != null ? request.cachePrefix : existing.cachePrefix;
         var updated = new ApiDtos.WorkflowDef(id,
             request.name != null && !request.name.isBlank() ? request.name : existing.name,
             request.nodes != null ? request.nodes : List.of(),
             request.edges != null ? request.edges : List.of(),
             request.initialTask != null ? request.initialTask : existing.initialTask,
+            newPrefix,
+            request.prefixCaching != null ? request.prefixCaching : existing.prefixCaching,
             existing.createdAt, new Date().toInstant().toString());
         state.putWorkflow(updated);
         state.incMetrics();
         auditStore.add("audit-" + UUID.randomUUID().toString().substring(0, 8), Instant.now().toString(),
             "System", "Update", "Workflow updated: " + updated.name);
-        return Response.ok(Map.of("id", updated.id, "name", updated.name,
-            "nodes", updated.nodes, "edges", updated.edges,
-            "initialTask", updated.initialTask != null ? updated.initialTask : "",
-            "createdAt", updated.createdAt, "updatedAt", updated.updatedAt)).build();
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("id", updated.id);
+        body.put("name", updated.name);
+        body.put("nodes", updated.nodes);
+        body.put("edges", updated.edges);
+        body.put("initialTask", updated.initialTask != null ? updated.initialTask : "");
+        body.put("cachePrefix", updated.cachePrefix);
+        body.put("prefixCaching", updated.prefixCaching != null ? updated.prefixCaching : Boolean.FALSE);
+        body.put("createdAt", updated.createdAt);
+        body.put("updatedAt", updated.updatedAt);
+        return Response.ok(body).build();
     }
 
     @POST @Path("/workflows/import")
@@ -371,7 +391,7 @@ public class AgentController {
         var now = new Date().toInstant().toString();
         var workflow = new ApiDtos.WorkflowDef(newId,
             existing.name != null ? existing.name + " (copy)" : "Untitled Workflow (copy)",
-            newNodes, newEdges, existing.initialTask, now, now);
+            newNodes, newEdges, existing.initialTask, existing.cachePrefix, existing.prefixCaching, now, now);
         state.putWorkflow(workflow);
         state.incMetrics();
         auditStore.add("audit-" + UUID.randomUUID().toString().substring(0, 8), Instant.now().toString(),

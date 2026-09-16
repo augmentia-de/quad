@@ -1,6 +1,7 @@
 package de.augmentia.quad.quarkus.workflow.node.executor;
 
 import de.augmentia.quad.core.agent.Agent;
+import de.augmentia.quad.core.agent.CachePrefixGuard;
 import de.augmentia.quad.core.agent.messaging.QuadMessage;
 import de.augmentia.quad.core.config.StructuredOutputConfig;
 import de.augmentia.quad.quarkus.messaging.ChannelAgentFactory;
@@ -12,6 +13,7 @@ import de.augmentia.quad.quarkus.workflow.internal.*;
 import de.augmentia.quad.quarkus.workflow.node.NodeConfig;
 import de.augmentia.quad.quarkus.workflow.node.NodeExecutor;
 import de.augmentia.quad.quarkus.workflow.node.NodeRunner;
+import de.augmentia.quad.quarkus.workflow.node.PrefixSourceResolver;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -74,7 +76,7 @@ public class AgentNodeExecutor implements NodeExecutor {
             output = "[sent to messaging channel]";
         } else {
             Agent agent = createConfiguredAgent(agentIdOf(node));
-            configureAgent(agent, config);
+            configureAgent(agent, config, ctx, nodeId);
             long timeoutMs = resolveTimeoutMs(node);
 
             String prompt2;
@@ -143,10 +145,10 @@ public class AgentNodeExecutor implements NodeExecutor {
                                WorkflowExecutionContext ctx, String childId) {
         String childType = NodeConfig.type(child);
         if (childType.isBlank()) childType = "agent";
-        if ("agent".equals(childType) || "messaging-in".equals(childType) || "messaging-out".equals(childType)) {
-            Agent agent = createConfiguredAgent(agentIdOf(child));
-            Map<String, Object> config = NodeConfig.of(child);
-            configureAgent(agent, config);
+if ("agent".equals(childType) || "messaging-in".equals(childType) || "messaging-out".equals(childType)) {
+                Agent agent = createConfiguredAgent(agentIdOf(child));
+                Map<String, Object> config = NodeConfig.of(child);
+                configureAgent(agent, config, ctx, childId);
             String inputContext = inputBuilder.buildNodeInput(child, edges, outputs, ctx.sessionState(), ctx.initialData(), ctx.initialData());
             long timeoutMs = resolveTimeoutMs(child);
             String output;
@@ -242,7 +244,8 @@ public class AgentNodeExecutor implements NodeExecutor {
         return support.nodeTimeoutMs(node, fallback);
     }
 
-    private void configureAgent(Agent agent, Map<String, Object> config) {
+    private void configureAgent(Agent agent, Map<String, Object> config, WorkflowExecutionContext ctx,
+                                String nodeId) {
         if (config.containsKey("systemPrompt") && config.get("systemPrompt") instanceof String sp && !sp.isBlank()) {
             agent.setSystemPrompt(sp);
         }
@@ -255,6 +258,43 @@ public class AgentNodeExecutor implements NodeExecutor {
         if (config.containsKey("jsonOutputSchema") && config.get("jsonOutputSchema") instanceof String jsch && !jsch.isBlank()) {
             agent.setStructuredOutputConfig(StructuredOutputConfig.dynamicSchema(jsch));
         }
+        // Agent-scoped prefix chain (Block A, §6). Each node opts in via
+        // usePrefix (fallback: the workflow-level "use prefix" marker); a node
+        // may load a new prefix (prefixSource or its own cachePrefix), skip
+        // (leave the current chain unchanged) or deactivate it (clearPrefix).
+        if (ctx != null) {
+            boolean usePrefix = config.containsKey("usePrefix")
+                    ? Boolean.TRUE.equals(config.get("usePrefix"))
+                    : ctx.prefixCaching();
+            boolean clearPrefix = Boolean.TRUE.equals(config.get("clearPrefix"));
+            if (clearPrefix) {
+                ctx.clearCurrentPrefix();
+                usePrefix = false;
+            }
+            if (usePrefix) {
+                String prefix = resolveNodePrefix(config, nodeId, ctx);
+                if (prefix != null && !prefix.isBlank()) {
+                    agent.setCachePrefix(prefix);
+                    ctx.setCurrentPrefix(prefix);
+                    ctx.assertSharedToolFingerprint(prefix, nodeId, CachePrefixGuard.toolFingerprint(agent));
+                }
+            }
+        }
+    }
+
+    /**
+     * Resolves the effective prefix for a node in the agent-scoped chain.
+     * Precedence: {@code prefixSource} (resolved at runtime) → node-local
+     * {@code cachePrefix} → the run's current chain prefix. A source that
+     * resolves to null/blank falls back to the node-local / current prefix.
+     */
+    private String resolveNodePrefix(Map<String, Object> config, String nodeId, WorkflowExecutionContext ctx) {
+        String fromSource = PrefixSourceResolver.resolve(config.get("prefixSource"), ctx, nodeId);
+        if (fromSource != null && !fromSource.isBlank()) return fromSource;
+        if (config.get("cachePrefix") instanceof String nodePrefix && !nodePrefix.isBlank()) {
+            return nodePrefix;
+        }
+        return ctx.currentPrefix();
     }
 
     private String agentIdOf(Map<String, Object> node) {

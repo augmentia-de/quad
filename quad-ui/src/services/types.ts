@@ -199,6 +199,10 @@ export interface WorkflowDefinition {
   edges: WorkflowEdge[]
   /** Optional start task used when the workflow has no messaging-in node */
   initialTask?: string
+  /** Workflow-level prefix content (Block A). Applied to agent nodes that inherit the shared prefix. */
+  cachePrefix?: string
+  /** Workflow-level opt-in for shared prefix caching (Block A). */
+  prefixCaching?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -210,6 +214,7 @@ export interface WorkflowSummary {
   nodeCount: number
   edgeCount: number
   initialTask?: string
+  prefixCaching?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -222,6 +227,10 @@ export interface WorkflowCreateRequest {
   edges: WorkflowEdge[]
   /** Optional start task used when the workflow has no messaging-in node */
   initialTask?: string
+  /** Workflow-level prefix content (Block A). Applied to agent nodes that inherit the shared prefix. */
+  cachePrefix?: string
+  /** Workflow-level opt-in for shared prefix caching (Block A). */
+  prefixCaching?: boolean
 }
 
 /** Result of a single node during workflow execution */

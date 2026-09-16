@@ -149,6 +149,46 @@
   color: var(--text-dim);
 }
 
+/* ─── Shared Prefix (Block A) ─────────────────────────────── */
+
+.shared-prefix-panel {
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.85rem;
+  background: color-mix(in srgb, var(--bg-soft) 60%, transparent);
+}
+
+.shared-prefix-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.shared-prefix-panel .form-group { margin-top: 0.6rem; margin-bottom: 0; }
+
+.cache-prefix-input { font-family: var(--mono); font-size: 0.78rem; }
+
+.prefix-section {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem 0;
+  margin: 0.5rem 0;
+}
+
+.prefix-section h4 {
+  margin: 0 0 0.55rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
 .mapping-row {
   display: flex;
   align-items: center;

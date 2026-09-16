@@ -51,6 +51,149 @@ const SESSION_FIELDS = [
 /** Spezialquelle = Start-/InitialTask des Workflows (Workflow-State-Objekt). */
 const INITIAL_DATA_FIELD = { value: '__initialData', label: 'Initial Data (Start-Task)' }
 
+export type PrefixSourceType = 'inline' | 'url' | 'file' | 'step' | 'self'
+
+const PREFIX_SOURCE_TYPES: Array<{ value: PrefixSourceType; label: string }> = [
+  { value: 'inline', label: 'Inline text' },
+  { value: 'url', label: 'URL (fetched at runtime)' },
+  { value: 'file', label: 'File (session workspace)' },
+  { value: 'step', label: 'Step output reference' },
+  { value: 'self', label: 'Self (this node)' },
+]
+
+/** Detects the prefixSource kind from the persisted config value (auto-detect rules of PrefixSourceResolver). */
+function prefixSourceTypeOf(raw: unknown): PrefixSourceType {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const m = raw as Record<string, unknown>
+    if (typeof m.url === 'string') return 'url'
+    if (typeof m.file === 'string') return 'file'
+    if (typeof m.step === 'string') return 'step'
+    if (m.self === true) return 'self'
+  }
+  return 'inline'
+}
+
+/** Extracts the editable value for the current prefixSource type. */
+function prefixSourceValueOf(raw: unknown): string {
+  if (raw == null) return ''
+  if (typeof raw === 'string') return raw
+  const m = raw as Record<string, unknown>
+  for (const key of ['url', 'file', 'step'] as const) {
+    if (typeof m[key] === 'string') return m[key]
+  }
+  return JSON.stringify(raw)
+}
+
+/** Builds the persisted prefixSource value from type + value (mirror of PrefixSourceResolver). */
+function prefixSourceToConfig(type: PrefixSourceType, value: string): unknown {
+  if (type === 'inline') return value
+  if (type === 'self') return { self: true }
+  return { [type]: value }
+}
+
+interface PrefixEditorProps {
+  config?: Record<string, unknown>
+  onChange: (updates: Record<string, unknown>) => void
+}
+
+function PrefixEditor({ config, onChange }: PrefixEditorProps) {
+  const prefixType = prefixSourceTypeOf(config?.prefixSource)
+  const prefixValue = prefixSourceValueOf(config?.prefixSource)
+  const usePrefix = config?.usePrefix
+  return (
+    <>
+      <div className="form-group">
+        <label>Use prefix</label>
+        <select
+          value={usePrefix === true ? 'true' : usePrefix === false ? 'false' : ''}
+          onChange={e => {
+            const cfg = { ...config }
+            const v = e.target.value
+            if (v === 'true') cfg.usePrefix = true
+            else if (v === 'false') cfg.usePrefix = false
+            else delete cfg.usePrefix
+            onChange(cfg)
+          }}
+        >
+          <option value="">Workflow default</option>
+          <option value="true">On</option>
+          <option value="false">Off</option>
+        </select>
+      </div>
+
+      <div className="form-group">
+        <label>
+          <input
+            type="checkbox"
+            checked={config?.clearPrefix === true}
+            onChange={e => {
+              const cfg = { ...config }
+              if (e.target.checked) cfg.clearPrefix = true
+              else delete cfg.clearPrefix
+              onChange(cfg)
+            }}
+          />
+          {' '}Clear inherited prefix (start fresh)
+        </label>
+      </div>
+
+      <div className="form-group">
+        <label>Node cache prefix (local override)</label>
+        <textarea
+          rows={2}
+          className="cache-prefix-input"
+          value={(config?.cachePrefix as string) ?? ''}
+          onChange={e => {
+            const cfg = { ...config }
+            if (e.target.value) cfg.cachePrefix = e.target.value
+            else delete cfg.cachePrefix
+            onChange(cfg)
+          }}
+          placeholder="Replaces the workflow-level prefix for this node."
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Prefix source</label>
+        <select
+          value={prefixType}
+          onChange={e => {
+            const t = e.target.value as PrefixSourceType
+            onChange({ ...config, prefixSource: prefixSourceToConfig(t, prefixValue) })
+          }}
+        >
+          {PREFIX_SOURCE_TYPES.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {prefixType !== 'self' && (
+          <textarea
+            rows={2}
+            className="cache-prefix-input"
+            value={prefixValue}
+            onChange={e => {
+              onChange({ ...config, prefixSource: prefixSourceToConfig(prefixType, e.target.value) })
+            }}
+            placeholder={
+              prefixType === 'url'
+                ? 'https://example.com/prefix.md'
+                : prefixType === 'file'
+                  ? 'path/relative/workspace or file://abs/path'
+                  : prefixType === 'step'
+                    ? 'target node id (e.g. node-... )'
+                    : 'Static prefix text loaded at runtime (overrides cache prefix).'
+            }
+          />
+        )}
+        <p className="field-hint">
+          Resolved at runtime: inline text, a URL, a workspace file or a prior step's output. Must stay
+          byte-identical across runs to hit the provider cache.
+        </p>
+      </div>
+    </>
+  )
+}
+
 interface SourceOption {
   value: string
   label: string
@@ -405,6 +548,9 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [initialTask, setInitialTask] = useState('')
   const [insertAgentId, setInsertAgentId] = useState<string>('')
+  /** Shared prefix (Block A) — workflow level. Persisted via the workflow save payload. */
+  const [cachePrefix, setCachePrefix] = useState('')
+  const [prefixCaching, setPrefixCaching] = useState(false)
   const [running, setRunning] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
@@ -476,7 +622,7 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
 
   /** Creates the workflow or updates it — returns the workflow id */
   const saveWorkflow = async (): Promise<string> => {
-    const payload = { name: state.name, nodes: state.nodes, edges: state.edges, initialTask }
+    const payload = { name: state.name, nodes: state.nodes, edges: state.edges, initialTask, cachePrefix, prefixCaching }
     if (isSaved) {
       await updateWorkflow(state.id, payload)
       return state.id
@@ -550,6 +696,8 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
       .then(wf => {
         loadWorkflow(wf.id, wf.name, wf.nodes, wf.edges)
         setInitialTask(wf.initialTask ?? '')
+        setCachePrefix(wf.cachePrefix ?? '')
+        setPrefixCaching(Boolean(wf.prefixCaching))
         setSelectedNodeId(null)
         setLastRun(null)
         setSaveMessage(null)
@@ -565,6 +713,8 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
       const wf = await fetchWorkflow(id)
       loadWorkflow(wf.id, wf.name, wf.nodes, wf.edges)
       setInitialTask(wf.initialTask ?? '')
+      setCachePrefix(wf.cachePrefix ?? '')
+      setPrefixCaching(Boolean(wf.prefixCaching))
       setSelectedNodeId(null)
       await runWorkflowById(id)
     } catch (err) {
@@ -577,6 +727,8 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
   const handleNewWorkflow = () => {
     newWorkflow()
     setInitialTask('')
+    setCachePrefix('')
+    setPrefixCaching(false)
     setSelectedNodeId(null)
     setLastRun(null)
     setSaveMessage(null)
@@ -656,6 +808,33 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
       </div>
 
       {saveMessage && <p className="save-message">{saveMessage}</p>}
+
+      <div className="shared-prefix-panel">
+        <label className="shared-prefix-toggle">
+          <input
+            type="checkbox"
+            checked={prefixCaching}
+            onChange={e => setPrefixCaching(e.target.checked)}
+          />
+          {' '}Shared Prefix Caching (Block A) — stable prefix for LLM cache hits
+        </label>
+        {prefixCaching && (
+          <div className="form-group">
+            <label>Cache Prefix (Block A)</label>
+            <textarea
+              className="cache-prefix-input"
+              value={cachePrefix}
+              onChange={e => setCachePrefix(e.target.value)}
+              placeholder="Static system instructions / tool guide shared by every agent node — must stay byte-identical across runs."
+              rows={3}
+            />
+            <p className="field-hint">
+              Applied to every agent node without an explicit per-node override. Agent nodes must register
+              byte-identical native tools, otherwise the run fails fast on the shared-tool guard.
+            </p>
+          </div>
+        )}
+      </div>
 
       <div className="start-task-row">
         <label htmlFor="start-task-input">Start / Initial Task:</label>
@@ -769,6 +948,13 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
                       ↻
                     </button>
                   </div>
+                </div>
+                <div className="prefix-section">
+                  <h4>Prefix (Block A)</h4>
+                  <PrefixEditor
+                    config={selectedNode.config}
+                    onChange={cfg => updateNode(selectedNode.id, { config: cfg })}
+                  />
                 </div>
                 <div className="form-group">
                   <label>

@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -73,6 +75,58 @@ class WorkflowExecutionContextSnapshotTest {
         ctx.restoreSnapshot("{\"version\":2,\"outputs\":{},\"bogus\":1}");
         assertTrue(ctx.outputs().isEmpty());
         assertTrue(ctx.loopIterations().isEmpty());
+    }
+
+    @Test
+    void prefixGuardAcceptsIdenticalAndRejectsDivergentFingerprints() {
+        WorkflowExecutionContext ctx = new WorkflowExecutionContext("run", null, "", "",
+                new AgentSessionState(), false, "block-a", true);
+
+        assertDoesNotThrow(() -> ctx.assertSharedToolFingerprint("block-a", "n1", "fp-a"));
+        assertDoesNotThrow(() -> ctx.assertSharedToolFingerprint("block-a", "n3", "fp-a"));
+        assertThrows(IllegalStateException.class, () -> ctx.assertSharedToolFingerprint("block-a", "n2", "fp-b"));
+    }
+
+    @Test
+    void prefixGuardIsGroupedPerPrefixText() {
+        WorkflowExecutionContext ctx = new WorkflowExecutionContext("run", null, "", "",
+                new AgentSessionState(), false, "prefix-a", true);
+
+        // same group, same fingerprint -> ok
+        assertDoesNotThrow(() -> ctx.assertSharedToolFingerprint("prefix-a", "n1", "fp-a"));
+        // different group is independent even with a divergent fingerprint
+        assertDoesNotThrow(() -> ctx.assertSharedToolFingerprint("prefix-b", "n2", "fp-c"));
+        // same group again with same fingerprint still ok
+        assertDoesNotThrow(() -> ctx.assertSharedToolFingerprint("prefix-a", "n3", "fp-a"));
+        assertThrows(IllegalStateException.class, () -> ctx.assertSharedToolFingerprint("prefix-a", "n4", "fp-b"));
+    }
+
+    @Test
+    void prefixGuardNoopForNullPrefix() {
+        WorkflowExecutionContext ctx = new WorkflowExecutionContext("run", null, "", "",
+                new AgentSessionState(), false, null, true);
+        assertDoesNotThrow(() -> ctx.assertSharedToolFingerprint(null, "n1", "fp-a"));
+        assertDoesNotThrow(() -> ctx.assertSharedToolFingerprint("   ", "n2", "fp-b"));
+    }
+
+    @Test
+    void agentPrefixedChainAdvancesSkipsAndClears() {
+        WorkflowExecutionContext ctx = new WorkflowExecutionContext("run", null, "", "",
+                new AgentSessionState(), false, "block-a", true);
+        assertEquals("block-a", ctx.currentPrefix());
+
+        ctx.setCurrentPrefix("middle");
+        assertEquals("middle", ctx.currentPrefix());
+
+        ctx.clearCurrentPrefix();
+        assertEquals(null, ctx.currentPrefix());
+    }
+
+    @Test
+    void chainSeedsNoPrefixWhenWorkflowFlagOff() {
+        WorkflowExecutionContext ctx = new WorkflowExecutionContext("run", null, "", "",
+                new AgentSessionState(), false, "block-a", false);
+        assertEquals(null, ctx.currentPrefix());
     }
 
     @Test

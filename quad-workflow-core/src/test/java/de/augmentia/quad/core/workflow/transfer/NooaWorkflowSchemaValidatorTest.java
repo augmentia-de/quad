@@ -60,6 +60,17 @@ class QuadWorkflowSchemaValidatorTest {
     }
 
     @Test
+    void envelopeWithPrefixFields_passes() {
+        JsonNode doc = parse(VALID_ENVELOPE);
+        ((com.fasterxml.jackson.databind.node.ObjectNode) doc)
+            .withObject("/workflows/0")
+            .put("prefixCaching", true)
+            .put("cachePrefix", "Du bist ein Workflow-Agent.");
+        List<String> issues = QuadWorkflowSchemaValidator.validate(doc);
+        assertThat(issues).isEmpty();
+    }
+
+    @Test
     void missingFormatAndVersion_fails() {
         JsonNode doc = parse(VALID_ENVELOPE).deepCopy();
         ((com.fasterxml.jackson.databind.node.ObjectNode) doc).remove("format");

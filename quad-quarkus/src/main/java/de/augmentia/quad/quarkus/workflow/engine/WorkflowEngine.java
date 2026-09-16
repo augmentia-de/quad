@@ -78,7 +78,7 @@ public class WorkflowEngine {
         String initialData = run.initialData != null ? run.initialData : "";
 
         WorkflowExecutionContext ctx = new WorkflowExecutionContext(run.runId, run, initialData, initialData,
-            sessionState, resume);
+            sessionState, resume, workflow.cachePrefix, Boolean.TRUE.equals(workflow.prefixCaching));
         if (restoredOutputs != null) ctx.outputs().putAll(restoredOutputs);
         if (resume) {
             // level 12: Losgeht's from the persistierten, versions-tragen Snapshot — reicher Loop/Join/

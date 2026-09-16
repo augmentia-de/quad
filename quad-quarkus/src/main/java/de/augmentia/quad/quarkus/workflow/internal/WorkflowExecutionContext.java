@@ -15,26 +15,69 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class WorkflowExecutionContext {
 
-    private final String runId;
+private final String runId;
     private final RunStore.RunState run;
     private final String initialData;
     private final String fallbackData;
     private final AgentSessionState sessionState;
     private final boolean resume;
+    /** Static cache prefix (Block A) shared across all agent nodes of this run.
+     *  Byte-identical content so the provider's prefix-cache serves it on every
+     *  node call. Null/blank = no prefix (no behavior change).
+     *  With the agent-scoped chain this seeds the run's current prefix. */
+    private final String cachePrefix;
+    /**
+     * Opt-in marker ("use prefix"). When true the run applies a prefix
+     * to every agent node (fallback when a node does not set {@code usePrefix}
+     * explicitly) and enforces byte-identical native tools across all
+     * prefix-sharing agent nodes (the user is responsible for identical tool
+     * registration; the engine fails fast otherwise).
+     */
+    private final boolean prefixCaching;
+
+    /** Current cache prefix of the agent-scoped chain, advanced as nodes execute.
+     *  A node may set a new prefix (prefixSource / cachePrefix), skip (leave as is)
+     *  or clear it (clearPrefix). Seeded from the static {@link #cachePrefix} when
+     *  prefix caching is active. */
+    private volatile String currentPrefix;
+
+    /** Prefix text -> first-seen native tool fingerprint of a prefix-caching run
+     *  (guard reference per prefix group). */
+    private final ConcurrentHashMap<String, String> sharedToolFingerprints = new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<String, String> outputs = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> statuses = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> joinDeadline = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Integer> loopIterations = new ConcurrentHashMap<>();
 
+    /**
+     * Convenience constructor without a cache prefix (no shared static prefix).
+     * Kept for callers/tests that do not participate in prefix caching.
+     */
     public WorkflowExecutionContext(String runId, RunStore.RunState run, String initialData,
-                                    String fallbackData, AgentSessionState sessionState, boolean resume) {
+                                     String fallbackData, AgentSessionState sessionState, boolean resume) {
+        this(runId, run, initialData, fallbackData, sessionState, resume, null, false);
+    }
+
+    /**
+     * Full constructor with a shared cache prefix (Block A) across all agent
+     * nodes of this run. Byte-identical content so the provider's prefix-cache
+     * serves it on every node call. Null/blank = no prefix (no behavior change);
+     * {@code prefixCaching} true additionally enforces identical native tools
+     * across agent nodes.
+     */
+    public WorkflowExecutionContext(String runId, RunStore.RunState run, String initialData,
+                                     String fallbackData, AgentSessionState sessionState, boolean resume,
+                                     String cachePrefix, boolean prefixCaching) {
         this.runId = runId;
         this.run = run;
         this.initialData = initialData != null ? initialData : "";
         this.fallbackData = fallbackData != null ? fallbackData : initialData != null ? initialData : "";
         this.sessionState = sessionState;
         this.resume = resume;
+        this.cachePrefix = cachePrefix;
+        this.prefixCaching = prefixCaching;
+        this.currentPrefix = prefixCaching ? cachePrefix : null;
     }
 
     public String runId() {
@@ -55,6 +98,55 @@ public class WorkflowExecutionContext {
 
     public AgentSessionState sessionState() {
         return sessionState;
+    }
+
+    /** Static cache prefix (Block A) shared across all agent nodes of this run. */
+    public String cachePrefix() {
+        return cachePrefix;
+    }
+
+    /** "Use prefix" marker: prefix applied and identical-tools invariant enforced. */
+    public boolean prefixCaching() {
+        return prefixCaching;
+    }
+
+    /** Current prefix of the agent-scoped chain (may be null when none/cleared). */
+    public String currentPrefix() {
+        return currentPrefix;
+    }
+
+    /** Advances the agent-scoped chain to the given prefix for following nodes. */
+    public void setCurrentPrefix(String prefix) {
+        this.currentPrefix = prefix;
+    }
+
+    /** Deactivates the chain: clears the current prefix for all following nodes. */
+    public void clearCurrentPrefix() {
+        this.currentPrefix = null;
+    }
+
+    /**
+     * Guard per prefix group: records the first node's native tool fingerprint for a
+     * given prefix text and throws if any later node sharing the exact same prefix
+     * diverges. Nodes with a different or no prefix are independent groups. With
+     * {@code prefixCaching=true} the user is responsible for identical tool
+     * registration; this makes a silent cache degradation fail fast at the
+     * divergent node.
+     */
+    public void assertSharedToolFingerprint(String prefix, String nodeId, String fingerprint) {
+        if (prefix == null || prefix.isBlank()) return;
+        String ref = sharedToolFingerprints.get(prefix);
+        if (ref == null) {
+            sharedToolFingerprints.putIfAbsent(prefix, fingerprint);
+            return;
+        }
+        if (!ref.equals(fingerprint)) {
+            throw new IllegalStateException(
+                    "prefix group '" + prefix + "' — agent node '" + nodeId
+                            + "' exposes different native tools than the other nodes sharing this "
+                            + "prefix — identical tool registration (same names, descriptions, parameter "
+                            + "schemas, same order) is required to keep the shared prefix cacheable.");
+        }
     }
 
     public boolean resume() {

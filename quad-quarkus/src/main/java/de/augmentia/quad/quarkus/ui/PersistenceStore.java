@@ -131,16 +131,21 @@ public class PersistenceStore {
     // ── Workflows ───────────────────────────────────────────
 
     public void upsertWorkflow(ApiDtos.WorkflowDef wf) {
-        String sql = dialect.upsert("workflows", "id, name, initial_task, nodes, edges, created_at, updated_at",
-            "id", "name=excluded.name, initial_task=excluded.initial_task, nodes=excluded.nodes, edges=excluded.edges, updated_at=excluded.updated_at");
+        String sql = dialect.upsert("workflows",
+            "id, name, initial_task, nodes, edges, cache_prefix, prefix_caching, created_at, updated_at",
+            "id",
+            "name=excluded.name, initial_task=excluded.initial_task, nodes=excluded.nodes, edges=excluded.edges, "
+            + "cache_prefix=excluded.cache_prefix, prefix_caching=excluded.prefix_caching, updated_at=excluded.updated_at");
         try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, wf.id);
             ps.setString(2, wf.name);
             ps.setString(3, wf.initialTask);
             ps.setString(4, MAPPER.writeValueAsString(wf.nodes));
             ps.setString(5, MAPPER.writeValueAsString(wf.edges));
-            ps.setString(6, wf.createdAt);
-            ps.setString(7, wf.updatedAt);
+            ps.setString(6, wf.cachePrefix);
+            ps.setBoolean(7, Boolean.TRUE.equals(wf.prefixCaching));
+            ps.setString(8, wf.createdAt);
+            ps.setString(9, wf.updatedAt);
             ps.executeUpdate();
         } catch (Exception e) {
             log.warnf(e, "upsertWorkflow fehlgeschlagen: %s", wf.id);
@@ -159,7 +164,8 @@ public class PersistenceStore {
 
     public Map<String, ApiDtos.WorkflowDef> loadAllWorkflows() {
         Map<String, ApiDtos.WorkflowDef> result = new LinkedHashMap<>();
-        String sql = "select id, name, initial_task, nodes, edges, created_at, updated_at from workflows";
+        String sql = "select id, name, initial_task, nodes, edges, cache_prefix, prefix_caching, "
+            + "created_at, updated_at from workflows";
         try (Connection c = dataSource.getConnection();
              Statement s = c.createStatement();
              ResultSet rs = s.executeQuery(sql)) {
@@ -168,8 +174,12 @@ public class PersistenceStore {
                     new TypeReference<List<Map<String, Object>>>() {});
                 List<Map<String, Object>> edges = MAPPER.readValue(rs.getString("edges"),
                     new TypeReference<List<Map<String, Object>>>() {});
+                String cachePrefix = rs.getString("cache_prefix");
+                boolean prefixCaching = rs.getBoolean("prefix_caching");
                 ApiDtos.WorkflowDef wf = new ApiDtos.WorkflowDef(
-                    rs.getString("id"), rs.getString("name"), nodes, edges, rs.getString("initial_task"),
+                    rs.getString("id"), rs.getString("name"), nodes, edges,
+                    rs.getString("initial_task"),
+                    cachePrefix, prefixCaching ? Boolean.TRUE : Boolean.FALSE,
                     rs.getString("created_at"), rs.getString("updated_at"));
                 result.put(wf.id, wf);
             }

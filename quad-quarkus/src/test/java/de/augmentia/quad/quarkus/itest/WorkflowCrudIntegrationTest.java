@@ -45,6 +45,28 @@ class WorkflowCrudIntegrationTest {
             .body("nodes[0].id", is("n1"));
     }
 
+    @Test @Order(15)
+    void createWorkflow_withPrefixFields_persistsRoundTrip() {
+        String prefix = "Du bist ein Agent. Halte Antworten kurz.";
+        String id = given().contentType(ContentType.JSON)
+            .body("{\"name\":\"Prefixed WF\",\"nodes\":["
+                + "{\"id\":\"p1\",\"type\":\"research\",\"title\":\"P\",\"status\":\"pending\","
+                + "\"config\":{\"usePrefix\":true,\"clearPrefix\":true,\"prefixSource\":\"PREFIX\"}}"
+                + "],\"edges\":[],\"prefixCaching\":true,\"cachePrefix\":\"" + prefix + "\"}")
+        .when().post(BASE)
+        .then().statusCode(201).extract().path("id");
+
+        given().when().get(BASE + "/" + id)
+        .then().statusCode(200)
+            .body("prefixCaching", is(true))
+            .body("cachePrefix", is(prefix))
+            .body("nodes[0].config.usePrefix", is(true))
+            .body("nodes[0].config.clearPrefix", is(true))
+            .body("nodes[0].config.prefixSource", is("PREFIX"));
+
+        given().when().delete(BASE + "/" + id).then().statusCode(204);
+    }
+
     @Test @Order(12)
     void listWorkflows_includesCreated() {
         given().when().get(BASE)
@@ -77,6 +99,24 @@ class WorkflowCrudIntegrationTest {
         given().contentType(ContentType.JSON)
             .body("{\"name\":\"X\",\"nodes\":[],\"edges\":[]}")
         .when().put(BASE + "/nonexistent").then().statusCode(404);
+    }
+
+    @Test @Order(25)
+    void updateWorkflow_setsPrefixFields() {
+        String prefix = "Updated prefix Block A";
+        given().contentType(ContentType.JSON)
+            .body("{\"name\":\"Updated WF\",\"nodes\":["
+                + "{\"id\":\"n1\",\"type\":\"code\",\"title\":\"Code\",\"status\":\"pending\"}"
+                + "],\"edges\":[],\"prefixCaching\":true,\"cachePrefix\":\"" + prefix + "\"}")
+        .when().put(BASE + "/" + createdWfId)
+        .then().statusCode(200)
+            .body("prefixCaching", is(true))
+            .body("cachePrefix", is(prefix));
+
+        given().when().get(BASE + "/" + createdWfId)
+        .then().statusCode(200)
+            .body("prefixCaching", is(true))
+            .body("cachePrefix", is(prefix));
     }
 
     @Test @Order(30)

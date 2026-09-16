@@ -22,6 +22,8 @@ import de.augmentia.quad.core.session.CurrentSession;
 import de.augmentia.quad.core.session.WorkspaceResolver;
 import de.augmentia.quad.core.tool.QuadToolRegistry;
 import de.augmentia.quad.core.tool.ToolMethod;
+import de.augmentia.quad.core.tool.SubAgentTool;
+import de.augmentia.quad.core.tool.DynamicSubAgentTool;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.model.chat.ChatModel;
@@ -57,6 +59,7 @@ public abstract class Agent {
     private StructuredOutputConfig structuredOutputConfig;
     private ChatRequestParameters chatParameters;
     private String systemPrompt;
+    private String cachePrefix;
     private String userMessageTemplate;
     private boolean jsonInput;
     private int reactMaxIterations = 10;
@@ -102,6 +105,42 @@ public abstract class Agent {
 
     public String getSystemPrompt() {
         return systemPrompt;
+    }
+
+    public void setCachePrefix(String cachePrefix) {
+        this.cachePrefix = cachePrefix;
+        propagateCachePrefixToSubAgents();
+    }
+
+    public String getCachePrefix() {
+        return cachePrefix;
+    }
+
+    /**
+     * Propagates this agent's active cache prefix to its registered sub-agent
+     * tools (agent-scoped prefix chain, §6). Static sub-agents inherit via their
+     * {@link Agent} field; dynamic sub-agents inherit when
+     * {@code inheritsCachePrefix()} is true (default). A null/blank prefix
+     * propagates as the cleared state for dynamic sub-agents; static sub-agents
+     * are only touched when they have no explicit prefix of their own.
+     */
+    private void propagateCachePrefixToSubAgents() {
+        if (toolRegistry == null) return;
+        for (ToolMethod tool : toolRegistry.getAll()) {
+            if (tool instanceof SubAgentTool sub) {
+                Agent subAgent = sub.getSubAgent();
+                if (subAgent != null && subAgent.getCachePrefix() == null
+                        && cachePrefix != null && !cachePrefix.isBlank()) {
+                    subAgent.setCachePrefix(cachePrefix);
+                }
+            } else if (tool instanceof DynamicSubAgentTool dynamic) {
+                if (dynamic.inheritsCachePrefix()
+                        && cachePrefix != null && !cachePrefix.isBlank()
+                        && !java.util.Objects.equals(dynamic.getCachePrefix(), cachePrefix)) {
+                    dynamic.setCachePrefix(cachePrefix);
+                }
+            }
+        }
     }
 
     public void setUserMessageTemplate(String userMessageTemplate) {
@@ -340,10 +379,10 @@ public abstract class Agent {
     public List<ChatMessage> initialMessages(String prompt, AgentSessionState state) {
         String jsonOutputSchema = structuredOutputConfig != null ? structuredOutputConfig.effectiveSchema() : null;
         return promptAssembler().buildInitialMessages(prompt, state, systemPrompt, jsonInput, userMessageTemplate,
-                jsonOutputSchema);
+                jsonOutputSchema, cachePrefix);
     }
 
-    private List<ToolSpecification> toolSpecifications() {
+    public List<ToolSpecification> toolSpecifications() {
         return toolRegistry != null
                 ? toolRegistry.getSpecifications().stream().map(s -> (ToolSpecification) s).toList()
                 : List.of();

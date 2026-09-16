@@ -212,7 +212,10 @@ public class DynamicWorkflowResource {
             request.name != null && !request.name.isBlank() ? request.name : "Untitled Workflow",
             request.nodes != null ? request.nodes : List.of(),
             request.edges != null ? request.edges : List.of(),
-            request.initialTask, now, now);
+            request.initialTask,
+            request.cachePrefix,
+            request.prefixCaching != null ? request.prefixCaching : Boolean.FALSE,
+            now, now);
         state.putWorkflow(workflow);
         state.incMetrics();
         auditStore.add("audit-" + UUID.randomUUID().toString().substring(0, 8),

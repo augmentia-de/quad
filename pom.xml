@@ -128,7 +128,7 @@
                 <artifactId>flyway-maven-plugin</artifactId>
                 <version>11.14.1</version> <!-- Use your Flyway version -->
                 <configuration>
-                    <url>jdbc:sqlite:/home/torsten/dev/my-projects/nooa/quad/data/quad.db</url>
+                    <url>jdbc:sqlite:${project.basedir}/data/quad.db</url>
                     <locations>
                         <location>filesystem:src/main/resources/db/migration/sqlite</location>
                     </locations>

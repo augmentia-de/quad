@@ -116,6 +116,8 @@ public class WorkflowTransferService {
         m.put("nodes", wf.nodes);
         m.put("edges", wf.edges);
         m.put("initialTask", wf.initialTask);
+        m.put("cachePrefix", wf.cachePrefix);
+        m.put("prefixCaching", wf.prefixCaching != null ? wf.prefixCaching : Boolean.FALSE);
         m.put("createdAt", wf.createdAt);
         m.put("updatedAt", wf.updatedAt);
         return m;
@@ -187,8 +189,13 @@ public class WorkflowTransferService {
             List<Map<String, Object>> nodes = toMaps(w.path("nodes"));
             List<Map<String, Object>> edges = toMaps(w.path("edges"));
             String init = w.path("initialTask").isNull() ? null : w.path("initialTask").asText();
+            String cachePrefix = w.path("cachePrefix").isNull() || w.path("cachePrefix").isMissingNode()
+                ? null : w.path("cachePrefix").asText();
+            Boolean prefixCaching = w.has("prefixCaching") && w.get("prefixCaching").isBoolean()
+                ? Boolean.valueOf(w.get("prefixCaching").asBoolean()) : Boolean.FALSE;
             String now = Instant.now().toString();
-            wfs.add(new ApiDtos.WorkflowDef(id, name, nodes, edges, init, now, now));
+            wfs.add(new ApiDtos.WorkflowDef(id, name, nodes, edges,
+                init, cachePrefix, prefixCaching, now, now));
         }
         return wfs;
     }
@@ -286,7 +293,8 @@ public class WorkflowTransferService {
             List<Map<String, Object>> nodes = clone ? remapNodes(wf, nodeMaps, wfIdMap, agentIdMap) : wf.nodes;
             List<Map<String, Object>> edges = clone ? remapEdges(wf.edges, nodeMaps.get(wf.id)) : wf.edges;
             String name = clone ? suffixImport(wf.name) : wf.name;
-            state.putWorkflow(new ApiDtos.WorkflowDef(newId, name, nodes, edges, wf.initialTask, now, now));
+            state.putWorkflow(new ApiDtos.WorkflowDef(newId, name, nodes, edges,
+                wf.initialTask, wf.cachePrefix, wf.prefixCaching, now, now));
         }
     }
 

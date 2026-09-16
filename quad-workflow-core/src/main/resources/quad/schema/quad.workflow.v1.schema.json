@@ -47,6 +47,8 @@
         "id": { "type": "string", "minLength": 1 },
         "name": { "type": "string" },
         "initialTask": { "type": ["string", "null"] },
+        "cachePrefix": { "type": ["string", "null"] },
+        "prefixCaching": { "type": ["boolean", "null"] },
         "createdAt": { "type": ["string", "null"], "format": "date-time" },
         "updatedAt": { "type": ["string", "null"], "format": "date-time" },
         "nodes": {

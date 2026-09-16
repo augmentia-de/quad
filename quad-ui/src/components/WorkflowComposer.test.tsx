@@ -59,6 +59,22 @@ describe('WorkflowComposer', () => {
     expect(input.value).toBe('Analyse die Beschwerden')
   })
 
+  it('reveals the shared prefix panel (Block A) only after enabling the toggle', () => {
+    render(
+      <WorkflowProvider>
+        <WorkflowComposer />
+      </WorkflowProvider>
+    )
+    expect(screen.queryByText('Cache Prefix (Block A)')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText(/Shared Prefix Caching/))
+
+    const textarea = screen.getByPlaceholderText(/Static system instructions/) as HTMLTextAreaElement
+    expect(textarea).toBeInTheDocument()
+    fireEvent.change(textarea, { target: { value: 'Du bist ein Workflow-Agent.' } })
+    expect(textarea.value).toBe('Du bist ein Workflow-Agent.')
+  })
+
   it('replaces the start-task input with a hint when a messaging-in node is added', () => {
     render(
       <WorkflowProvider>

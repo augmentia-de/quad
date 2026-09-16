@@ -37,10 +37,12 @@ if [ "$MODE" = "dev" ]; then
 
     # Create workspace dir if missing
     mkdir -p "$WORKSPACE"
+    mkdir -p "$SCRIPT_DIR/data"
 
     cd "$SCRIPT_DIR/quad-quarkus"
     mvn clean quarkus:dev \
         -Dquarkus.http.port="$PORT" \
+        -DQUARKUS_DATASOURCE_JDBC_URL="jdbc:sqlite:${SCRIPT_DIR}/data/quad.db" \
         -Dquad.workspace="$WORKSPACE" \
         -Dquad.agent.workspace="$WORKSPACE" \
         -Dquad.workspace.granted-dirs="${QUAD_GRANTED_DIRS:-}" \

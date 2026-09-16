@@ -199,19 +199,46 @@ public class ApiDtos {
         public List<Map<String, Object>> nodes;
         public List<Map<String, Object>> edges;
         public String initialTask;
+        /**
+         * Opt-in marker ("use prefix") for shared prefix caching (Block A).
+         * When {@code true} the run applies {@link #cachePrefix} to every agent
+         * node and enforces that ALL agent nodes expose byte-identical native
+         * tools — the user is responsible for identical tool registration, the
+         * engine fails fast if that invariant is violated (otherwise the cache
+         * would silently degrade). Default empty/null = off.
+         */
+        public Boolean prefixCaching;
+        /**
+         * Static cache-prefix content (Block A) shared across all agent nodes.
+         * Only consumed (and only meaningful) when {@link #prefixCaching} is true;
+         * must be byte-identical across runs to hit the provider cache.
+         */
+        public String cachePrefix;
         public String createdAt;
         public String updatedAt;
 
         public WorkflowDef() {}
         public WorkflowDef(String id, String name, List<Map<String, Object>> nodes,
                 List<Map<String, Object>> edges, String createdAt, String updatedAt) {
-            this(id, name, nodes, edges, null, createdAt, updatedAt);
+            this(id, name, nodes, edges, null, null, createdAt, updatedAt);
         }
         public WorkflowDef(String id, String name, List<Map<String, Object>> nodes,
                 List<Map<String, Object>> edges, String initialTask,
                 String createdAt, String updatedAt) {
+            this(id, name, nodes, edges, initialTask, null, createdAt, updatedAt);
+        }
+        public WorkflowDef(String id, String name, List<Map<String, Object>> nodes,
+                List<Map<String, Object>> edges, String initialTask, String cachePrefix,
+                String createdAt, String updatedAt) {
+            this(id, name, nodes, edges, initialTask, cachePrefix, null, createdAt, updatedAt);
+        }
+        public WorkflowDef(String id, String name, List<Map<String, Object>> nodes,
+                List<Map<String, Object>> edges, String initialTask, String cachePrefix,
+                Boolean prefixCaching, String createdAt, String updatedAt) {
             this.id = id; this.name = name; this.nodes = nodes; this.edges = edges;
             this.initialTask = initialTask;
+            this.cachePrefix = cachePrefix;
+            this.prefixCaching = prefixCaching;
             this.createdAt = createdAt; this.updatedAt = updatedAt;
         }
     }
@@ -223,6 +250,19 @@ public class ApiDtos {
         public java.util.List<java.util.Map<String, Object>> nodes;
         public java.util.List<java.util.Map<String, Object>> edges;
         public String initialTask;
+        /**
+         * Opt-in marker for shared prefix caching (Block A). When true the run
+         * seeds its prefix chain with {@link #cachePrefix} (if set) and applies
+         * a prefix to every agent node without an explicit per-node
+         * {@code usePrefix}. See {@link WorkflowDef#prefixCaching}.
+         */
+        public Boolean prefixCaching;
+        /**
+         * Static cache-prefix content (Block A) shared across all agent nodes.
+         * Only consumed (and only meaningful) when {@link #prefixCaching} is
+         * true or a node opts in via its own {@code usePrefix}/{@code prefixSource}.
+         */
+        public String cachePrefix;
     }
 
     @RegisterForReflection
