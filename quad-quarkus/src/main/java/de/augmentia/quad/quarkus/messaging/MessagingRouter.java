@@ -14,6 +14,8 @@ import org.jboss.logging.Logger;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @ApplicationScoped
 public class MessagingRouter {
@@ -35,6 +37,8 @@ public class MessagingRouter {
     WorkflowEngine workflowEngine;
 
     private final Map<String, InboundChannel> runningChannels = new ConcurrentHashMap<>();
+
+    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     @PostConstruct
     void start() {
@@ -68,9 +72,14 @@ public class MessagingRouter {
             channel.stop();
         }
         runningChannels.clear();
+        executor.shutdownNow();
     }
 
     public void handleMessage(QuadMessage message) {
+        executor.submit(() -> processMessage(message));
+    }
+
+    private void processMessage(QuadMessage message) {
         log.infof("Received message from %s: %s (session=%s)",
             message.source(), message.contentType(), message.sessionId());
 
