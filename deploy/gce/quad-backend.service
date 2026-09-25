@@ -1,0 +1,29 @@
+# quad-backend.service — systemd-Unit für das native QUAD-Quarkus-Binary
+# Verwendet durch scripts/deploy-gce.sh. Kopiert nach /etc/systemd/system/quad-backend.service
+#
+# QUARKUS_PROFILE=cloud: SQLite (./data/quad-cloud.db, persistent auf VM-Platte),
+# kein OTel, minimales Logging. OpenRouter/OpenAI-Key kommt aus /etc/quad/quad.env.
+
+[Unit]
+Description=quad-quarkus backend (native, GCE e2-micro)
+After=network.target
+
+[Service]
+Type=simple
+User=quad
+Group=quad
+WorkingDirectory=/opt/quad
+Environment=QUARKUS_PROFILE=cloud
+Environment=QUARKUS_HTTP_PORT=8080
+Environment=QUARKUS_HTTP_HOST=0.0.0.0
+Environment=QUAD_MCP_ENABLED=false
+EnvironmentFile=/etc/quad/quad.env
+ExecStart=/opt/quad/quad-quarkus-1.0.0-SNAPSHOT-runner
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=quad-backend
+
+[Install]
+WantedBy=multi-user.target

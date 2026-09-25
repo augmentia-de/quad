@@ -39,10 +39,18 @@ if [ "$MODE" = "dev" ]; then
     mkdir -p "$WORKSPACE"
     mkdir -p "$SCRIPT_DIR/data"
 
+    DB_KIND="${QUARKUS_DATASOURCE_DB_KIND:-sqlite}"
+    DB_URL="${QUARKUS_DATASOURCE_JDBC_URL:-jdbc:sqlite:${SCRIPT_DIR}/data/quad.db}"
+    DB_DRIVER="${QUARKUS_DATASOURCE_JDBC_DRIVER:-org.sqlite.JDBC}"
+
     cd "$SCRIPT_DIR/quad-quarkus"
     mvn clean quarkus:dev \
         -Dquarkus.http.port="$PORT" \
-        -DQUARKUS_DATASOURCE_JDBC_URL="jdbc:sqlite:${SCRIPT_DIR}/data/quad.db" \
+        -DQUARKUS_DATASOURCE_DB_KIND="$DB_KIND" \
+        -DQUARKUS_DATASOURCE_JDBC_URL="$DB_URL" \
+        -DQUARKUS_DATASOURCE_JDBC_DRIVER="$DB_DRIVER" \
+        -DQUARKUS_DATASOURCE_USERNAME="${QUARKUS_DATASOURCE_USERNAME:-}" \
+        -DQUARKUS_DATASOURCE_PASSWORD="${QUARKUS_DATASOURCE_PASSWORD:-}" \
         -Dquad.workspace="$WORKSPACE" \
         -Dquad.agent.workspace="$WORKSPACE" \
         -Dquad.workspace.granted-dirs="${QUAD_GRANTED_DIRS:-}" \

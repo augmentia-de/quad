@@ -10,13 +10,15 @@
   /* Palette — dunkles Graphit */
   --text: #bdbcc4;          /* body */
   --text-h: #eef0f4;        /* headings / emphasized */
-  --text-dim: #92919a;      /* meta, labels */
+  --text-dim: #9b9aa4;      /* meta, labels (≥4.5:1 auch auf --surface-2) */
+  --text-m: #b3b1bb;        /* medium emphasis / secondary (dunkles Theme) */
   --bg: #242427;            /* app background (dark graphite) */
   --surface: #2c2c30;       /* raised surfaces */
   --surface-2: #343438;     /* hover / headers */
   --border: #45454c;        /* 1px rules */
   --border-strong: #5f5f69;
   --code-bg: #29292d;       /* code / pre backgrounds */
+  --bg-soft: #2a2a2f;       /* weiche Fläche (z.B. Panels bei 60% Alpha) */
 
   --accent: #75c29d;        /* muted emerald (single primary accent) */
   --accent-hover: #8ad2af;

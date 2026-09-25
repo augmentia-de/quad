@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useWorkflow } from '../contexts/WorkflowContext'
 import { createWorkflow, executeWorkflow, fetchAgents, fetchMessagingChannels, fetchRun, fetchWorkflow, fetchWorkflows, updateWorkflow } from '../services/api'
+import * as kafkaApi from '../services/kafkaApi'
 import { WorkflowList } from './WorkflowList'
 import { JsonSchemaPopup } from './JsonSchemaPopup'
 import { buildSchemaTree } from '../services/jsonSchema'
@@ -545,6 +546,7 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
   const [agents, setAgents] = useState<AgentDefinition[]>([])
   const [messagingChannels, setMessagingChannels] = useState<MessagingChannel[]>([])
   const [workflows, setWorkflows] = useState<WorkflowSummary[]>([])
+  const [kafkaWorkflows, setKafkaWorkflows] = useState<kafkaApi.KafkaWorkflowDefinition[]>([])
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [initialTask, setInitialTask] = useState('')
   const [insertAgentId, setInsertAgentId] = useState<string>('')
@@ -558,26 +560,56 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
   const [runError, setRunError] = useState<string | null>(null)
   const [schemaEditorOpen, setSchemaEditorOpen] = useState(false)
   const [editEdgeInputId, setEditEdgeInputId] = useState<string | null>(null)
+  const [backend, setBackend] = useState<'quarkus' | 'kafka'>('quarkus')
   const startTaskRef = useRef<HTMLTextAreaElement>(null)
 
   const hasMessagingIn = state.nodes.some(n => n.type === 'messaging-in')
 
   useEffect(() => {
     let cancelled = false
-    const loadData = () => {
+    fetchMessagingChannels()
+      .then(data => { if (!cancelled) setMessagingChannels(data) })
+      .catch(() => undefined)
+    fetchWorkflows()
+      .then(data => { if (!cancelled) setWorkflows(data) })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    if (backend === 'kafka') {
+      kafkaApi.fetchKafkaAgents()
+        .then(data => {
+          if (cancelled) return
+          setAgents(data.map(a => ({
+            id: a.id, name: a.name, description: '', category: a.category,
+            model: a.modelKey, temperature: a.temperature, maxTokens: a.maxTokens, topP: 1,
+            tools: [], guardrailsInput: [], guardrailsOutput: [], hooks: [],
+            active: true, agentType: a.id, systemPrompt: '', userMessageTemplate: '',
+            jsonOutput: false, jsonOutputSchema: '', chatParameters: '', timeoutSeconds: a.timeoutSeconds,
+          } as any)))
+        })
+        .catch(() => undefined)
+    } else {
       fetchAgents()
         .then(data => { if (!cancelled) setAgents(data) })
         .catch(() => undefined)
-      fetchMessagingChannels()
-        .then(data => { if (!cancelled) setMessagingChannels(data) })
-        .catch(() => undefined)
-      fetchWorkflows()
-        .then(data => { if (!cancelled) setWorkflows(data) })
-        .catch(() => undefined)
     }
-    loadData()
     return () => { cancelled = true }
-  }, [])
+  }, [backend])
+
+  useEffect(() => {
+    let cancelled = false
+    if (backend === 'kafka') {
+      kafkaApi.fetchKafkaWorkflows()
+        .then(data => { if (!cancelled) setKafkaWorkflows(data) })
+        .catch(() => undefined)
+    } else {
+      setKafkaWorkflows([])
+    }
+    return () => { cancelled = true }
+  }, [backend])
 
   // Auto-grow the start-task textarea with its content; collapses back to one line when empty
   const autogrowStartTask = (el: HTMLTextAreaElement) => {
@@ -677,16 +709,76 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
     }
   }
 
+  /** Kafka-based execution with polling on checkpoints endpoint */
+  const runKafkaWorkflow = async (executionId: string) => {
+    setRunError(null)
+    setLastRun(null)
+    markRunning()
+    let finished = false
+    while (!finished) {
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      try {
+        const status = await kafkaApi.getKafkaWorkflowStatus(executionId)
+        const checkpoints = status.checkpoints ?? []
+        const statuses: Record<string, 'pending' | 'running' | 'waiting' | 'completed' | 'failed'> = {}
+        for (const cp of checkpoints) {
+          statuses[cp.stepId] = cp.status.toLowerCase().includes('complete') ? 'completed'
+            : cp.status.toLowerCase().includes('fail') ? 'failed'
+            : cp.status.toLowerCase().includes('wait') ? 'waiting'
+            : 'running' as const
+        }
+        setNodeStatuses(statuses)
+        setLastRun({
+          runId: executionId,
+          workflowId: status.workflowName,
+          status: status.status,
+          startedAt: status.startedAt,
+          finishedAt: status.finishedAt ?? undefined,
+          durationMs: status.finishedAt ? Date.parse(status.finishedAt) - Date.parse(status.startedAt) : 0,
+          nodeResults: checkpoints.map(cp => ({
+            nodeId: cp.stepId,
+            type: cp.agentType || 'step',
+            title: cp.stepId,
+            status: statuses[cp.stepId] || 'pending',
+          })),
+          initialData: {},
+        })
+        if (status.status === 'COMPLETED' || status.status === 'FAILED' || status.status === 'CANCELLED') {
+          finished = true
+          if (status.status === 'FAILED') setRunError(`Workflow ${status.workflowName} failed`)
+        }
+      } catch {
+        finished = true
+        setRunError('Could not load Kafka workflow status')
+      }
+    }
+  }
+
   const handleExecute = async () => {
     if (state.nodes.length === 0 || running) return
     setRunning(true)
     try {
-      const id = await saveWorkflow()
-      await runWorkflowById(id)
+      if (backend === 'kafka') {
+        // Convert + persist (shared DB) + start in one atomic call via the gateway.
+        const resp = await kafkaApi.convertQuadToKafka(
+          state.name,
+          state.nodes.map(n => ({
+            id: n.id,
+            type: n.type,
+            agentType: (n.config?.agentId as string) || undefined,
+          })),
+          state.edges.map(e => ({ source: e.source, target: e.target, condition: '' })),
+          initialTask
+        )
+        setSaveMessage(`Kafka: ${resp.nodeCount} nodes → execution ${resp.executionId}`)
+        await runKafkaWorkflow(resp.executionId)
+      } else {
+        const id = await saveWorkflow()
+        await runWorkflowById(id)
+      }
     } catch (error) {
       state.nodes.forEach(node => updateNode(node.id, { status: 'failed' }))
       setRunError(String(error))
-    } finally {
       setRunning(false)
     }
   }
@@ -799,6 +891,17 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
         </select>
         <span className="toolbar-separator" />
         <button type="button" onClick={resetWorkflow} disabled={state.nodes.length === 0}>Reset</button>
+        <span className="toolbar-separator" />
+        <select
+          value={backend}
+          onChange={e => setBackend(e.target.value as 'quarkus' | 'kafka')}
+          aria-label="Execution backend"
+          style={{ minWidth: '12em' }}
+        >
+          <option value="quarkus">🟣 Quarkus Backend</option>
+          <option value="kafka">🟢 Kafka Orchestrator</option>
+        </select>
+        <span className="toolbar-separator" />
         <button type="button" onClick={handleSave} disabled={state.nodes.length === 0 || saving}>
           {saving ? 'Saving...' : isSaved ? 'Save (Update)' : 'Save'}
         </button>

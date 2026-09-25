@@ -18,7 +18,6 @@ import { ProvenanceView } from './components/ProvenanceView'
 import { Automation } from './components/Automation'
 import { WorkspaceManager } from './components/WorkspaceManager'
 import { DynamicWorkflow } from './components/DynamicWorkflow'
-import './App.css'
 
 const NAVIGATION_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -39,72 +38,115 @@ const NAVIGATION_ITEMS = [
   { id: 'debug', label: 'Debug', icon: '🐛' },
 ]
 
-function TabNavigation({ activeTab, onTabChange }: {
+/* ── Desktop / Shutdown Screen ─────────────────────────────────── */
+
+function DesktopScreen({ onRestore }: { onRestore: () => void }) {
+  return (
+    <div className="desktop-screen">
+      {/* Quad Studio icon in the top-left corner */}
+      <div className="desktop-icon-group" onClick={onRestore}>
+        <img src="/ai-pc-icon.png" alt="" className="desktop-icon" />
+        <span className="desktop-label">QUAD Studio</span>
+      </div>
+    </div>
+  )
+}
+
+/* ── Side Navigation ────────────────────────────────────────────── */
+
+function SideNavigation({ activeTab, onSelect }: {
   activeTab: string
-  onTabChange: (tab: string) => void
+  onSelect: (id: string) => void
 }) {
   return (
-    <nav className="tabs" role="tablist">
-      {NAVIGATION_ITEMS.map(item => (
-        <button
-          key={item.id}
-          role="tab"
-          aria-selected={activeTab === item.id}
-          className={activeTab === item.id ? 'active' : ''}
-          onClick={() => onTabChange(item.id)}
-        >
-          <span className="tab-icon">{item.icon}</span>
-          <span className="tab-label">{item.label}</span>
-        </button>
-      ))}
+    <nav className="side-nav" role="navigation" aria-label="Main navigation">
+      <ul>
+        {NAVIGATION_ITEMS.map(item => (
+          <li key={item.id}>
+            <button
+              className={`side-btn${activeTab === item.id ? ' active' : ''}`}
+              onClick={() => onSelect(item.id)}
+              title={item.label}
+            >
+              {item.icon} {item.label}
+            </button>
+          </li>
+        ))}
+      </ul>
     </nav>
   )
 }
 
-function AppContent({ activeTab, onNavigate }: { activeTab: string, onNavigate: (tab: string) => void }) {
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard': return <Dashboard onNavigate={onNavigate} />
-      case 'agents': return <AgentManager />
-      case 'workflows': return <WorkflowComposer onTabChange={onNavigate} />
-      case 'dynamic': return <DynamicWorkflow />
-      case 'runs': return <Runs />
-      case 'messaging': return <Messaging />
-      case 'memory': return <MemoryManager />
-      case 'security': return <SecurityCenter />
-      case 'permissions': return <WorkspaceManager />
-      case 'automation': return <Automation />
-      case 'skills': return <SkillStoreManager />
-      case 'provenance': return <ProvenanceView />
-      case 'sessions': return <Sessions />
-      case 'monitor': return <Monitor />
-      case 'audit': return <Audit />
-      case 'debug': return <DebugView />
-      default: return <Dashboard onNavigate={onNavigate} />
+/* ── App ─────────────────────────────────────────────────────────── */
+
+function App() {
+  const [shutDown, setShutdown] = useState(false)
+  const [activeTab, setActiveTab] = useState('dashboard')
+
+  // ── Both minimize and close → exit to desktop ──
+  const handleMinimize = () => setShutdown(true)
+
+  const handleClose = () => {
+    if (window.confirm('QUAD Studio schließen?')) {
+      setShutdown(true)
     }
   }
 
-  return (
-    <main className="app-main">
-      {renderContent()}
-    </main>
-  )
-}
+  const handleRestore = () => {
+    setShutdown(false)
+  }
 
-function App() {
-  const [activeTab, setActiveTab] = useState('dashboard')
+  // ── Desktop phase (both minimized and closed lead here) ──
+  if (shutDown) {
+    return <DesktopScreen onRestore={handleRestore} />
+  }
 
   return (
     <WorkflowProvider>
-      <div className="quad-app" role="main">
-        <header className="app-header">
-          <h1>QUAD Studio</h1>
-        </header>
-        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-        <div className="flex flex-1 overflow-hidden">
-          <AppContent activeTab={activeTab} onNavigate={setActiveTab} />
+      <div className="window" style={{ width: '100%', minHeight: '100vh', margin: 0 }}>
+
+        {/* ── Title Bar ────────────────────────────────────────── */}
+        <div className="title-bar">
+          <img src="/ai-pc-icon-small.png" alt="QUAD" className="app-icon" />
+          <div className="title-bar-text">QUAD Studio - Legacy software in the AI era</div>
+          <div className="title-bar-controls">
+            <button aria-label="Minimize" onClick={handleMinimize} />
+            <button aria-label="Maximize" onClick={() => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()} />
+            <button aria-label="Close" onClick={handleClose} />
+          </div>
         </div>
-        <StatusBar />
+
+        {/* ── Side-nav + Main content ──────────────────────────── */}
+        <div className="app-layout">
+          <SideNavigation activeTab={activeTab} onSelect={setActiveTab} />
+
+          <div className="main-content">
+            {activeTab === 'dashboard' && <Dashboard onNavigate={setActiveTab} />}
+            {activeTab === 'agents' && <AgentManager />}
+            {activeTab === 'workflows' && <WorkflowComposer onTabChange={setActiveTab} />}
+            {activeTab === 'dynamic' && <DynamicWorkflow />}
+            {activeTab === 'runs' && <Runs />}
+            {activeTab === 'messaging' && <Messaging />}
+            {activeTab === 'memory' && <MemoryManager />}
+            {activeTab === 'security' && <SecurityCenter />}
+            {activeTab === 'permissions' && <WorkspaceManager />}
+            {activeTab === 'automation' && <Automation />}
+            {activeTab === 'skills' && <SkillStoreManager />}
+            {activeTab === 'provenance' && <ProvenanceView />}
+            {activeTab === 'sessions' && <Sessions />}
+            {activeTab === 'monitor' && <Monitor />}
+            {activeTab === 'audit' && <Audit />}
+            {activeTab === 'debug' && <DebugView />}
+          </div>
+        </div>
+
+        {/* ── Status Bar ───────────────────────────────────────── */}
+        <div className="status-bar">
+          <p className="status-bar-field">Quad Studio — Win98 Edition</p>
+          <p className="status-bar-field">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</p>
+        </div>
+
+        {/* Overlays always on top */}
         <HitlOverlay />
       </div>
     </WorkflowProvider>

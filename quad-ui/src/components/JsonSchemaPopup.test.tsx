@@ -36,7 +36,7 @@ describe('JsonSchemaPopup', () => {
     const onSave = vi.fn()
     render(<JsonSchemaPopup initialSchema="" onSave={onSave} onClose={() => {}} />)
 
-    expect(screen.getByText('Schema deaktiviert (leer).')).toBeInTheDocument()
+    expect(screen.getByText('Schema disabled (empty).')).toBeInTheDocument()
     const save = screen.getByText('Save Schema') as HTMLButtonElement
     expect(save.disabled).toBe(false)
     fireEvent.click(save)

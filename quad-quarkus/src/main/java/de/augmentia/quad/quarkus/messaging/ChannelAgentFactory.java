@@ -30,6 +30,7 @@ import de.augmentia.quad.core.capability.CapabilitySearchAgent;
 import de.augmentia.quad.quarkus.permission.PermissionService;
 import de.augmentia.quad.quarkus.skillstore.JdbcSkillStore;
 import de.augmentia.quad.quarkus.skillstore.SkillsConfig;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -42,6 +43,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
+@RegisterForReflection(targets = CapabilitySearchAgent.class)
 public class ChannelAgentFactory {
 
     private static final Logger log = Logger.getLogger(ChannelAgentFactory.class);

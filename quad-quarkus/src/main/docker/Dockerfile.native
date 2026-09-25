@@ -38,7 +38,8 @@ COPY --from=build /root/.m2/repository /root/.m2/repository
 COPY --from=build /project /project
 WORKDIR /project
 RUN mvn package -Pnative -DskipTests -pl quad-quarkus -am \
-    -Dquarkus.native.container-build=false
+    -Dquarkus.native.container-build=false \
+    -Dquarkus.profile=cloud
 
 # ==== Stage 3: Minimal Runtime ====
 FROM debian:bookworm-slim
@@ -47,8 +48,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 RUN groupadd -r appuser -g 1001 && useradd -r -g appuser -u 1001 -m appuser
 WORKDIR /work/
-RUN chown 1001:1001 /work \
-    && chmod "g+rwX" /work
+RUN mkdir -p /work/data \
+    && chown 1001:1001 /work /work/data \
+    && chmod "g+rwX" /work /work/data
 COPY --from=native /project/quad-quarkus/target/*-runner /work/application
 EXPOSE 8080
 USER 1001

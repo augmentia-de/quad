@@ -25,7 +25,7 @@ describe('AgentPlayground', () => {
 expect(screen.getByPlaceholderText(/Enter task/)).toBeInTheDocument()
 expect(screen.getByLabelText(/Agent for test/)).toBeInTheDocument()
     expect(screen.getByText('ResearchAgent (gpt-4o-mini)')).toBeInTheDocument()
-    expect(screen.getByText('▶ Testen')).toBeDisabled()
+    expect(screen.getByText('▶ Run')).toBeDisabled()
   })
 
   it('offers a chat history checkbox that is off by default', () => {
@@ -39,6 +39,6 @@ expect(screen.getByLabelText(/Agent for test/)).toBeInTheDocument()
   it('disables the run button without a task', () => {
     render(<AgentPlayground agents={[]} />)
 
-    expect(screen.getByText('▶ Testen')).toBeDisabled()
+    expect(screen.getByText('▶ Run')).toBeDisabled()
   })
 })

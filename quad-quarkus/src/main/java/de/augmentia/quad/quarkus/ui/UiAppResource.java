@@ -35,6 +35,6 @@ public class UiAppResource {
     }
 
     private String createFallbackHtml() {
-        return "<!DOCTYPE html><html><head><title>QUAD Studio</title></head><body><div id=\"app\"></div><script src=\"/ui/assets/index.js\"></script></body></html>";
+        return "<!DOCTYPE html><html><head><title>QUAD Studio - Legacy software in the AI era</title></head><body><div id=\"app\"></div><script src=\"/ui/assets/index.js\"></script></body></html>";
     }
 }
