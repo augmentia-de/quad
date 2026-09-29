@@ -6,20 +6,21 @@ import de.augmentia.quad.core.hook.pipeline.HookResult;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
- * Hook that injects the matching skill instruction after tool_activator calls.
- * Detects which tool was activated, finds the corresponding skill, and injects
- * the instructions as a DynamicBlock into the context.
+ * Hook that detects when tool_activator activates a tool declared by a skill.
+ * In the new JIT model, the agent uses load_skill directly — this hook is
+ * kept for backward compatibility with declared-tools workflows.
  */
 public class SkillActivationHook implements Plugin {
 
     private final Map<String, Skill> toolToSkill = new HashMap<>();
-    private final AgentSkillsPlugin skillsPlugin;
+    private final Consumer<String> onSkillActivated;
 
-    public SkillActivationHook(Map<String, Skill> toolToSkill, AgentSkillsPlugin skillsPlugin) {
+    public SkillActivationHook(Map<String, Skill> toolToSkill, Consumer<String> onSkillActivated) {
         this.toolToSkill.putAll(toolToSkill);
-        this.skillsPlugin = skillsPlugin;
+        this.onSkillActivated = onSkillActivated;
     }
 
     @Override public String name() { return "quad:skill-activation"; }
@@ -27,11 +28,13 @@ public class SkillActivationHook implements Plugin {
 
     @Override
     public HookResult afterToolCall(HookContexts.AfterToolCallContext ctx, String toolResult) {
-        if (!"tool_activator".equals(ctx.toolName())) return new HookResult.Continue();
+        if (!"tool_activator".equals(ctx.toolName())) return HookResult.Continue.INSTANCE;
         var skill = findActivatedSkill(toolResult);
-        if (skill == null) return new HookResult.Continue();
-        skillsPlugin.activateSkill(skill.name());
-        return new HookResult.Continue();
+        if (skill == null) return HookResult.Continue.INSTANCE;
+        if (onSkillActivated != null) {
+            onSkillActivated.accept(skill.name());
+        }
+        return HookResult.Continue.INSTANCE;
     }
 
     private Skill findActivatedSkill(String result) {

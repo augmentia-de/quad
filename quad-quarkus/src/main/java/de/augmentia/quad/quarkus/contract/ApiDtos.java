@@ -70,10 +70,12 @@ public class ApiDtos {
         /** JSON Schema (JSON-String) for strukturierte Ausgabe, if jsonOutput aktiv ist. */
         public String jsonOutputSchema;
         public String chatParameters;
-        /** true = sichtbar in der klassischen UI; false = intern generierter WF-Step-Agent. */
-        public boolean active = true;
-        /** Individual runtime limit in seconds per agent execution. NULL = global default. */
-        public Integer timeoutSeconds;
+/** true = sichtbar in der klassischen UI; false = intern generierter WF-Step-Agent. */
+    public boolean active = true;
+    /** Individual runtime limit in seconds per agent execution. NULL = global default. */
+    public Integer timeoutSeconds;
+    /** Skill names selected for this agent (JIT-loaded via load_skill tool). */
+    public String[] skills;
 
         public AgentDefinition() {}
         public AgentDefinition(String id, String name, String description, String category, String model,
@@ -163,6 +165,7 @@ public class ApiDtos {
             b.put("chatParameters", chatParameters);
             b.put("active", active);
             b.put("timeoutSeconds", timeoutSeconds);
+            b.put("skills", skills != null ? List.of(skills) : List.of());
             return b;
         }
     }

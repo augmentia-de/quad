@@ -10,7 +10,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Lists skills, filters by keyword, activates skills, and provides instructions.
+ * Lists skills, filters by keyword, and points the agent to load_skill for full instructions.
+ *
+ * <p>This tool is for DISCOVERY only (Phase 1). To actually load a skill's full instructions,
+ * the agent should call <code>load_skill("skillName")</code>.
  */
 public class SkillSearchTool implements ToolMethod {
 
@@ -29,9 +32,10 @@ public class SkillSearchTool implements ToolMethod {
         this.callback = callback;
         this.spec = ToolSpecification.builder()
             .name("skill_search")
-            .description("Search available skills and activate them. "
+            .description("Search available skills and get their descriptions. "
                 + "Without arguments, lists all skills. Use 'query' to filter, "
-                + "or 'skillName' to load full instructions.")
+                + "or 'skillName' to get a hint about a specific skill. "
+                + "To load the FULL instructions, use load_skill with the skill name.")
             .build();
     }
 
@@ -40,7 +44,7 @@ public class SkillSearchTool implements ToolMethod {
 
     @Override
     public ToolResult execute(String jsonArguments, AgentSessionState state) throws Exception {
-        var node = MAPPER.readTree(jsonArguments);
+        var node = MAPPER.readTree(jsonArguments != null ? jsonArguments : "{}");
         var query = node.has("query") ? node.get("query").asText(null) : null;
         var skillName = node.has("skillName") ? node.get("skillName").asText(null) : null;
 
@@ -49,25 +53,23 @@ public class SkillSearchTool implements ToolMethod {
         }
 
         if (skillName != null) {
-            return ToolResult.success(activateSkill(skillName));
+            return ToolResult.success(getSkillHint(skillName));
         }
         return ToolResult.success(listSkills(query));
     }
 
-    private String activateSkill(String skillName) {
+    private String getSkillHint(String skillName) {
         var skill = skills.get(skillName);
         if (skill == null) {
             var available = skills.keySet().stream().sorted().collect(Collectors.joining(", "));
-            return "Skill '" + skillName + "' not found.\nAvailable: " + available;
-        }
-        if (callback != null) {
-            return callback.activate(skillName);
+            return "Skill '" + skillName + "' not found.\nAvailable: " + available
+                + "\n\nUse load_skill(\"" + skillName + "\") to load the full instructions.";
         }
         var sb = new StringBuilder();
-        sb.append("Skill activated: ").append(skill.name()).append("\n\n");
-        sb.append(skill.instructions() != null ? skill.instructions() : skill.description());
-        if (skill.allowedTools() != null && !skill.allowedTools().isEmpty())
-            sb.append("\n\nAllowed tools: ").append(String.join(", ", skill.allowedTools()));
+        sb.append("Skill: ").append(skill.name()).append("\n");
+        sb.append("Description: ").append(skill.description()).append("\n\n");
+        sb.append("To load the FULL instructions (step-by-step guide, allowed tools, examples),\n");
+        sb.append("call: load_skill(\"").append(skill.name()).append("\")");
         return sb.toString();
     }
 
@@ -86,7 +88,7 @@ public class SkillSearchTool implements ToolMethod {
         var sb = new StringBuilder("Available skills:\n");
         for (var s : matching)
             sb.append("- ").append(s.name()).append(": ").append(s.description()).append("\n");
-        sb.append("\nUse skill_search with skillName to activate a skill.");
+        sb.append("\nUse load_skill with skillName to load the full instructions for a skill.");
         return sb.toString();
     }
 }

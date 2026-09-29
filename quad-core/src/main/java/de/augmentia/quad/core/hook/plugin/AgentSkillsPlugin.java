@@ -4,21 +4,33 @@ import de.augmentia.quad.core.agent.Agent;
 import de.augmentia.quad.core.capability.skill.Skill;
 import de.augmentia.quad.core.hook.pipeline.HookContexts;
 import de.augmentia.quad.core.hook.pipeline.HookResult;
-import de.augmentia.quad.core.tool.ToolMethod;
+import dev.langchain4j.data.message.SystemMessage;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Plugin, das vor jedem LLM-Call einen XML-Block mit Skills injiziert.
- * Generates {@code <activated_skills>} and {@code <available_skills>} blocks.
+ * Plugin, das vor jedem LLM-Call einen Skill-Catalog (Name + Description) injiziert.
+ *
+ * <h3>Two-Phase Skill Loading (Just-in-Time)</h3>
+ * <p><b>Phase 1 (Startup):</b> Nur das Skill-Catalog wird im System Prompt eingefügt —
+ * Name + kurze Beschreibung. Das kostet 20-50 Tokens pro Skill und verhindert
+ * Context Bloat.
+ *
+ * <p><b>Phase 2 (Runtime):</b> Wenn der Agent einen Skill braucht, ruft er
+ * <code>load_skill("skillName")</code> auf. Das Tool lädt die vollständigen
+ * Instructions (200+ Zeilen) erst als Tool-Result in den Context.
+ *
+ * <p>Dies ist analog zu jedem anderen Tool: Name+Description im Schema →
+ * Function Call → Result im Context.
  */
 public class AgentSkillsPlugin implements Plugin {
 
     private final Map<String, Skill> skills;
     private final List<String> initialSkills;
     private final boolean skillSearchEnabled;
-    private String lastInjectedXml = "";
+    private String lastInjectedCatalog = "";
     private Agent agent;
 
     public AgentSkillsPlugin(List<Skill> skills, List<String> initialSkills, boolean skillSearchEnabled) {
@@ -36,78 +48,45 @@ public class AgentSkillsPlugin implements Plugin {
     @Override
     public void initAgent(Agent agent) { this.agent = agent; }
 
+    /**
+     * Phase 1: Injiziert NUR das Skill-Catalog (Name + Description).
+     * Die vollständigen Instructions werden NICHT injiziert — die kommen erst
+     * über load_skill() als Tool-Result in den Context.
+     */
     @Override
     public HookResult beforeModelCall(HookContexts.BeforeModelCallContext ctx) {
-        if (skills.isEmpty()) return new HookResult.Continue();
-        var xml = generateSkillsXml();
-        if (xml.equals(lastInjectedXml)) return new HookResult.Continue();
-        ctx.additionalMessages().add(
-            dev.langchain4j.data.message.SystemMessage.from(xml));
-        lastInjectedXml = xml;
-        return new HookResult.Continue();
+        if (skills.isEmpty()) return HookResult.Continue.INSTANCE;
+        String catalog = generateSkillCatalog();
+        if (catalog.equals(lastInjectedCatalog)) return HookResult.Continue.INSTANCE;
+        ctx.additionalMessages().add(SystemMessage.from(catalog));
+        lastInjectedCatalog = catalog;
+        return HookResult.Continue.INSTANCE;
     }
 
-    private String generateSkillsXml() {
+    /**
+     * Phase 1: Skill-Catalog — Name + Description pro Skill.
+     * Keine Instructions, keine allowed-tools, keine Examples.
+     */
+    private String generateSkillCatalog() {
         var buf = new StringBuilder();
-
-        if (!initialSkills.isEmpty()) {
-            buf.append("<activated_skills>\n");
-            for (var name : initialSkills) {
-                var s = skills.get(name);
-                if (s != null) {
-                    buf.append("<skill name=\"").append(escapeXml(s.name())).append("\">\n");
-                    buf.append(s.instructions() != null ? s.instructions() : s.description());
-                    buf.append("\n");
-                    if (s.allowedTools() != null && !s.allowedTools().isEmpty())
-                        buf.append("<allowed_tools>").append(String.join(", ", s.allowedTools()))
-                           .append("</allowed_tools>\n");
-                    buf.append("</skill>\n");
-                }
+        buf.append("## Available Skills\n\n");
+        buf.append("Use the load_skill tool with a skill name to load the full instructions when your task matches a skill description.\n\n");
+        for (var s : skills.values()) {
+            buf.append("- **").append(escapeXml(s.name())).append("**");
+            if (s.description() != null && !s.description().isBlank()) {
+                buf.append(": ").append(escapeXml(s.description()));
             }
-            buf.append("</activated_skills>\n\n");
+            buf.append("\n");
         }
-
-        buf.append("<available_skills>\n");
-        if (skills.isEmpty()) {
-            buf.append("No skills are currently available.\n");
-        } else {
-            for (var s : skills.values()) {
-                buf.append("<skill>\n");
-                buf.append("<name>").append(escapeXml(s.name())).append("</name>\n");
-                buf.append("<description>").append(escapeXml(s.description())).append("</description>\n");
-                if (s.path() != null)
-                    buf.append("<location>").append(escapeXml(s.path().toString())).append("</location>\n");
-                buf.append("</skill>\n");
-            }
-        }
-        buf.append("</available_skills>\n");
-
         if (skillSearchEnabled) {
-            buf.append("\nUse the skill_search tool to search and activate skills.\n");
+            buf.append("\nYou can also use skill_search to find skills by keyword.");
         }
         return buf.toString();
     }
 
-    @Override
-    public List<ToolMethod> getTools() {
-        return List.of();
+    public Map<String, Skill> skills() {
+        return Map.copyOf(skills);
     }
-
-    public String activateSkill(String skillName) {
-        var skill = skills.get(skillName);
-        if (skill == null) {
-            var available = skills.keySet().stream().sorted().collect(Collectors.joining(", "));
-            return "Skill '" + skillName + "' not found.\nAvailable: " + available;
-        }
-        var sb = new StringBuilder();
-        sb.append("Skill activated: ").append(skill.name()).append("\n\n");
-        sb.append(skill.instructions() != null ? skill.instructions() : skill.description());
-        if (skill.allowedTools() != null && !skill.allowedTools().isEmpty())
-            sb.append("\n\nAllowed tools: ").append(String.join(", ", skill.allowedTools()));
-        return sb.toString();
-    }
-
-    public Map<String, Skill> skills() { return skills; }
 
     private static String escapeXml(String s) {
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");

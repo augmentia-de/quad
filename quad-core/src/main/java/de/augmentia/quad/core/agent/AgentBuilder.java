@@ -21,6 +21,7 @@ import de.augmentia.quad.core.capability.CapabilityRegistry;
 import de.augmentia.quad.core.capability.skill.Skill;
 import de.augmentia.quad.core.hook.plugin.AgentSkillsPlugin;
 import de.augmentia.quad.core.hook.plugin.SkillActivationHook;
+import de.augmentia.quad.core.tool.SkillLoadTool;
 import de.augmentia.quad.core.tool.SkillSearchTool;
 import de.augmentia.quad.core.tool.ToolActivatorTool;
 import dev.langchain4j.model.chat.ChatModel;
@@ -289,24 +290,28 @@ public class AgentBuilder<T extends Agent> {
             .skillDirs(skillDirs.toArray(new Path[0]))
             .build();
         var allSkills = capabilityRegistry.discoverAllSkills();
+        var skillMap = new HashMap<String, Skill>();
+        for (var s : allSkills) skillMap.put(s.name(), s);
 
-        // AgentSkillsPlugin — XML-Injection
+        // 1. AgentSkillsPlugin — Phase 1: injiziert NUR das Skill-Catalog (Name + Description)
         var skillsPlugin = new AgentSkillsPlugin(allSkills, initialSkills, skillSearchEnabled);
         agent.addHook(skillsPlugin);
 
-        // SkillSearchTool
+        // 2. load_skill Tool — Phase 2: Just-in-Time Loading der vollständigen Instructions
+        var loadSkillTool = new SkillLoadTool(skillMap);
+        toolRegistry.register(loadSkillTool.spec().name(), loadSkillTool);
+
+        // 3. SkillSearchTool — Discovery only (point to load_skill for full instructions)
         if (skillSearchEnabled) {
-            var skillMap = new HashMap<String, Skill>();
-            for (var s : allSkills) skillMap.put(s.name(), s);
-            var skillSearchTool = new SkillSearchTool(skillMap, skillsPlugin::activateSkill);
+            var skillSearchTool = new SkillSearchTool(skillMap, null);
             toolRegistry.register(skillSearchTool.spec().name(), skillSearchTool);
         }
 
-        // ToolActivatorTool
+        // 4. ToolActivatorTool — dynamische Tool-Registrierung
         var toolActivator = new ToolActivatorTool(toolRegistry);
         toolRegistry.register(toolActivator.spec().name(), toolActivator);
 
-        // SkillActivationHook
+        // 5. SkillActivationHook — Tool-Aktivierung erkennt Skill-Wechsel
         var toolToSkill = new HashMap<String, Skill>();
         for (var s : allSkills) {
             if (s.declaredTools() != null) {
@@ -315,7 +320,7 @@ public class AgentBuilder<T extends Agent> {
                 }
             }
         }
-        var activationHook = new SkillActivationHook(toolToSkill, skillsPlugin);
+        var activationHook = new SkillActivationHook(toolToSkill, null);
         agent.addHook(activationHook);
     }
 }

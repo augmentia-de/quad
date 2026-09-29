@@ -371,8 +371,9 @@ class SkillLoadingSearchTest {
 
         ToolResult result = tool.execute("{\"skillName\": \"Activatable\"}", null);
 
-        assertTrue(result.text().contains("Activated"));
+        // JIT model: skill_search with skillName returns a hint pointing to load_skill
         assertTrue(result.text().contains("Activatable"));
+        assertTrue(result.text().contains("load_skill"));
     }
 
     @Test
@@ -401,7 +402,7 @@ class SkillLoadingSearchTest {
     }
 
     @Test
-    void shouldReturnSkillInstructionsOnActivationWithoutCallback() throws Exception {
+    void shouldReturnSkillHintOnActivationWithoutCallback() throws Exception {
         createSkill("instr-skill", "Instruction Skill", "Has instructions",
             "These are the instructions for the skill.");
 
@@ -410,9 +411,11 @@ class SkillLoadingSearchTest {
 
         ToolResult result = tool.execute("{\"skillName\": \"Instruction Skill\"}", null);
 
-        assertTrue(result.text().contains("Skill activated"));
+        // JIT model: skill_search returns a hint, not the full instructions
         assertTrue(result.text().contains("Instruction Skill"));
-        assertTrue(result.text().contains("instructions for the skill"));
+        assertTrue(result.text().contains("load_skill"));
+        // Full instructions must NOT be returned by skill_search
+        assertFalse(result.text().contains("These are the instructions for the skill."));
     }
 
     @Test

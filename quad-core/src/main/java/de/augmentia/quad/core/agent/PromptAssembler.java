@@ -103,10 +103,10 @@ public class PromptAssembler {
             sysMsgBuilder.append(withTools);
         }
 
-        if (skillRegistry != null) {
-            String withSkills = skillListRenderer.renderWithSkills(sysMsgBuilder.toString(), skillRegistry.listActivated());
+        if (skillRegistry != null && !skillRegistry.listDiscovered().isEmpty()) {
+            String catalog = skillListRenderer.renderCatalog(sysMsgBuilder.toString(), skillRegistry);
             sysMsgBuilder.setLength(0);
-            sysMsgBuilder.append(withSkills);
+            sysMsgBuilder.append(catalog);
         }
 
         List<ChatMessage> messages = new ArrayList<>();

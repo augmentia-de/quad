@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchHooks } from '../services/api'
-import type { AgentDefinition } from '../services/types'
+import type { AgentDefinition, SkillSpec } from '../services/types'
 
 const INPUT_GUARDRAIL_OPTIONS = [
   { name: 'pii', label: 'PII (E-Mail-Adressen)' },
@@ -27,6 +27,8 @@ interface AgentEditorProps {
   onDelete?: () => void
   modelOptions: string[]
   toolOptions: string[]
+  skillOptions: SkillSpec[]
+  onSkillToggle?: (skillName: string) => void
 }
 
 function GuardrailCheckboxes({
@@ -59,7 +61,7 @@ function GuardrailCheckboxes({
   )
 }
 
-export function AgentEditor({ agent, isNew = false, onSave, onCancel, onDelete, modelOptions, toolOptions }: AgentEditorProps) {
+export function AgentEditor({ agent, isNew = false, onSave, onCancel, onDelete, modelOptions, toolOptions, skillOptions }: AgentEditorProps) {
   const [editedAgent, setEditedAgent] = useState(agent)
   const [hookOptions, setHookOptions] = useState(FALLBACK_HOOK_OPTIONS)
 
@@ -208,6 +210,37 @@ export function AgentEditor({ agent, isNew = false, onSave, onCancel, onDelete, 
               </label>
             ))}
           </div>
+        </div>
+
+        <div className="form-group">
+          <label>Skills (JIT-loaded via load_skill tool)</label>
+          <div className="tool-checkbox-group">
+            {skillOptions.length === 0 ? (
+              <small style={{ color: '#888' }}>No skills available. Create skills in the Skill Store first.</small>
+            ) : (
+              skillOptions.map(s => (
+                <label key={s.name}>
+                  <input
+                    type="checkbox"
+                    checked={(editedAgent.skills ?? []).includes(s.name)}
+                    onChange={e => {
+                      const newSkills = e.target.checked
+                        ? [...(editedAgent.skills ?? []), s.name]
+                        : (editedAgent.skills ?? []).filter(x => x !== s.name)
+                      setEditedAgent({ ...editedAgent, skills: newSkills })
+                    }}
+                  />
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    {s.name}
+                    <span className="badge" style={{ background: s.source === 'db' ? 'var(--accent-bg)' : 'var(--surface-2)', fontSize: '0.7rem' }}>{s.source}</span>
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+          <small style={{display: 'block', marginTop: '4px', color: '#888'}}>
+            Skills are loaded Just-in-Time via the load_skill tool when the agent needs them. Max 3 active at startup.
+          </small>
         </div>
 
         <div className="form-group">

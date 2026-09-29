@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { AgentEditor } from './AgentEditor'
 import { AgentPlayground } from './AgentPlayground'
-import { createAgent, deleteAgent, duplicateAgent, fetchAgents, fetchTools, updateAgent } from '../services/api'
-import type { AgentDefinition } from '../services/types'
+import { createAgent, deleteAgent, duplicateAgent, fetchAgents, fetchSkills, fetchTools, updateAgent } from '../services/api'
+import type { AgentDefinition, SkillSpec } from '../services/types'
 
 const modelOptions = ['deepseek/deepseek-v4-flash', 'gpt-4o', 'gpt-4o-mini']
 
 export function AgentManager() {
   const [allAgents, setAllAgents] = useState<AgentDefinition[]>([])
   const [toolOptions, setToolOptions] = useState<string[]>([])
+  const [skillOptions, setSkillOptions] = useState<SkillSpec[]>([])
   const [showEditor, setShowEditor] = useState(false)
   const [editingAgent, setEditingAgent] = useState<AgentDefinition | null>(null)
   const [editingIsNew, setEditingIsNew] = useState(false)
@@ -26,6 +27,9 @@ export function AgentManager() {
       .catch(() => {
         if (!cancelled) setToolOptions(['readFile', 'writeFile', 'webSearch', 'executeBash', 'analyze'])
       })
+    fetchSkills()
+      .then(skills => { if (!cancelled) setSkillOptions(skills) })
+      .catch(() => { if (!cancelled) setSkillOptions([]) })
     return () => { cancelled = true }
   }, [])
 
@@ -55,6 +59,7 @@ export function AgentManager() {
       hooks: [],
       agentType: 'ua',
       systemPrompt: 'You are QUAD, a helpful AI assistant. Be concise, accurate and helpful. When you use tools, explain what you did.',
+      skills: [],
     })
     setEditingIsNew(true)
     setShowEditor(true)
@@ -142,6 +147,7 @@ export function AgentManager() {
           onDelete={editingIsNew ? undefined : () => handleDelete(editingAgent.id, true)}
           modelOptions={modelOptions}
           toolOptions={toolOptions}
+          skillOptions={skillOptions}
         />
       )}
 
@@ -167,6 +173,7 @@ export function AgentManager() {
                   <div className="agent-meta">
                     <span className="model">{agent.model}</span>
                     <span className="tools">{agent.tools.length} tools</span>
+                    <span className="skills">{(agent.skills ?? []).length} skills</span>
                   </div>
                   <div className="guardrail-badges">
                     {(agent.guardrailsInput ?? []).map(g => (
@@ -177,6 +184,9 @@ export function AgentManager() {
                     ))}
                     {(agent.hooks ?? []).map(h => (
                       <span key={`hook-${h}`} className="badge badge-hook" title={`Hook: ${h}`}>{h}</span>
+                    ))}
+                    {(agent.skills ?? []).map(s => (
+                      <span key={`skill-${s}`} className="badge badge-skill" title={`Skill: ${s}`}>{s}</span>
                     ))}
                   </div>
                   <button

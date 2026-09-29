@@ -52,6 +52,8 @@ export interface AgentDefinition {
   active?: boolean
   /** Individual runtime limit in seconds per agent execution. Undefined = global default. */
   timeoutSeconds?: number
+  /** Skill names selected for this agent (JIT-loaded via load_skill tool). */
+  skills?: string[]
 }
 
 /** Request payload to create an agent (id is assigned by the backend) */
@@ -442,12 +444,17 @@ export interface ModelTiersResponse {
 
 // ─── Skill ────────────────────────────────────────────────────────────────
 
-/** A skill entry (GET /api/ui/skills) */
+/** A skill entry (GET /api/ui/skills) — unified file + DB view */
 export interface SkillSpec {
   name: string
   description: string
+  instructions?: string
   allowedTools: string[]
   declaredTools: string[]
+  /** Source: "file" (SKILL.md) or "db" (skills table). DB overrides file. */
+  source: 'file' | 'db'
+  /** Whether the skill is currently active (selected in UI). */
+  active: boolean
 }
 
 /** Request payload for PUT/POST /api/ui/skills/{name} */

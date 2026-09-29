@@ -173,6 +173,7 @@ export async function createAgent(agent: AgentCreateRequest): Promise<string> {
     jsonOutput: agent.jsonOutput ?? false,
     jsonOutputSchema: agent.jsonOutputSchema ?? '',
     chatParameters: agent.chatParameters,
+    skills: agent.skills ?? [],
   }
   const data = await request<{ id: string }>('/agents', json('POST', flat))
   return data.id
@@ -197,6 +198,7 @@ export function updateAgent(id: string, agent: AgentCreateRequest): Promise<Agen
     jsonOutput: agent.jsonOutput ?? false,
     jsonOutputSchema: agent.jsonOutputSchema ?? '',
     chatParameters: agent.chatParameters,
+    skills: agent.skills ?? [],
   }
   return request<AgentDefinition>(`/agents/${encodeURIComponent(id)}`, json('PUT', flat))
 }
@@ -485,6 +487,11 @@ export function upsertSkill(name: string, payload: SkillUpsertRequest): Promise<
 
 export function deleteSkill(name: string): Promise<void> {
   return request<void>(`/skills/${encodeURIComponent(name)}`, { method: 'DELETE' })
+}
+
+/** Activate/deactivate a skill (UI selection). */
+export function activateSkill(name: string, payload: { active: boolean }): Promise<void> {
+  return request<void>(`/skills/${encodeURIComponent(name)}/activate`, json('POST', payload))
 }
 
 // ─── Memory Persistence (Port 01) ──────────────────────────────────────────

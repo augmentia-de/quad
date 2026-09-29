@@ -28,7 +28,9 @@ import de.augmentia.quad.quarkus.persistence.AgentStepExporter;
 import de.augmentia.quad.quarkus.hitl.HitlService;
 import de.augmentia.quad.core.capability.CapabilitySearchAgent;
 import de.augmentia.quad.quarkus.permission.PermissionService;
+import de.augmentia.quad.quarkus.skillstore.JdbcAgentSkillStore;
 import de.augmentia.quad.quarkus.skillstore.JdbcSkillStore;
+import de.augmentia.quad.quarkus.skillstore.SkillService;
 import de.augmentia.quad.quarkus.skillstore.SkillsConfig;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -59,6 +61,8 @@ public class ChannelAgentFactory {
     @Inject PermissionService permissionService;
     @Inject SkillsConfig skillStoreConfig;
     @Inject JdbcSkillStore jdbcSkillStore;
+    @Inject JdbcAgentSkillStore agentSkillStore;
+    @Inject SkillService skillService;
     @Inject HitlService hitlService;
     @Inject HookRegistry hookRegistry;
 
@@ -140,7 +144,7 @@ public class ChannelAgentFactory {
         List<ToolMethod> mcpTools = mcpManager.tools() != null ? mcpManager.tools() : List.of();
 
         if (uiConfig.isDummyMode()) {
-            var builder = applySkills(AgentBuilder.create(DemoAgent.class).withDefaults());
+            var builder = applySkills(AgentBuilder.create(DemoAgent.class).withDefaults(), def);
             builder = builder.withTools(tools);
             var agent = builder.withLogging().build();
             registerTools(agent, mcpTools, tools);
@@ -151,7 +155,7 @@ public class ChannelAgentFactory {
         // 3. Create agent via AgentBuilderFactory (no withTools — we handle that ourselves)
         Class<? extends Agent> agentClass = resolveAgentType(def.agentType);
         AgentBuilder<?> builder = agentBuilderFactory.forClass(agentClass);
-        builder = applySkills(builder.withTools(tools));
+        builder = applySkills(builder.withTools(tools), def);
         var agent = builder.withLogging().build();
         if (modelTiersEnabled) {
             agent.setLlm(new TieredChatModel(
@@ -273,19 +277,24 @@ public class ChannelAgentFactory {
         };
     }
 
-    private AgentBuilder<?> applySkills(AgentBuilder<?> builder) {
+    private AgentBuilder<?> applySkills(AgentBuilder<?> builder, ApiDtos.AgentDefinition def) {
         if (!skillsEnabled) return builder;
         java.nio.file.Path dir = skillsDir.filter(s -> !s.isBlank())
             .map(java.nio.file.Path::of)
             .orElse(java.nio.file.Path.of("skills"));
         builder.withSkills(dir);
         if (skillSearchEnabled) builder.withSkillSearch(true);
-        initialSkills.filter(s -> !s.isBlank()).ifPresent(s -> builder.withInitialSkills(
-            Arrays.stream(s.split(",")).map(String::trim).filter(x -> !x.isEmpty()).toList()));
+        // initialSkills come from agent_skills table (assigned skills for this agent)
+        if (def.id != null && !def.id.isBlank()) {
+            var assigned = agentSkillStore.listByAgent(def.id);
+            if (!assigned.isEmpty()) {
+                builder.withInitialSkills(assigned);
+            }
+        }
         return builder;
     }
 
-    /** Port 06: union-filter agent's tool registry by DB skill whitelist. */
+    /** Port 06: union-filter agent's tool registry by DB+file skill whitelist. */
     private void applyDbSkills(Agent agent, Set<String> allowedTools) {
         if (!skillStoreConfig.isEnabled()) return;
         try {
@@ -293,8 +302,10 @@ public class ChannelAgentFactory {
             if (reg == null) return;
             Set<String> currentNames = reg.getAll().stream()
                 .map(t -> t.spec().name()).collect(Collectors.toSet());
-            
-            // Union: collect all tools allowed by any DB skill that has restrictions
+
+            // Union: collect all tools allowed by any DB skill that has restrictions.
+            // File-based skills are handled via AgentBuilder.withSkills() — they do
+            // not participate in the DB tool-filter union.
             Set<String> filtered = new HashSet<>(currentNames);
             for (var skill : jdbcSkillStore.listAll()) {
                 if (skill.hasToolRestrictions()) {
@@ -302,7 +313,7 @@ public class ChannelAgentFactory {
                     filtered.addAll(allowed);
                 }
             }
-            
+
             // Remove tools not in the filtered set
             if (!filtered.equals(currentNames)) {
                 for (var name : currentNames) {
