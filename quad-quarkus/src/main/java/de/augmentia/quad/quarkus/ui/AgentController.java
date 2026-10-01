@@ -6,15 +6,17 @@ import de.augmentia.quad.core.session.AgentSessionState;
 import de.augmentia.quad.core.session.memory.SessionMemory;
 import de.augmentia.quad.quarkus.agent.config.AgentBuilderConfig;
 import de.augmentia.quad.quarkus.agent.config.GrantedDirsConfig;
-import de.augmentia.quad.quarkus.contract.ApiDtos;
+import de.augmentia.quad.contract.ApiDtos;
 import de.augmentia.quad.quarkus.hitl.HitlService;
 import de.augmentia.quad.quarkus.mcp.McpManagerService;
 import de.augmentia.quad.quarkus.persistence.AuditStore;
 import de.augmentia.quad.quarkus.persistence.JournalService;
+import de.augmentia.quad.core.workflow.run.WorkflowRunSnapshot;
+import de.augmentia.quad.core.workflow.run.WorkflowRunState;
 import de.augmentia.quad.quarkus.persistence.RunStore;
 import de.augmentia.quad.quarkus.persistence.SessionStore;
 import de.augmentia.quad.quarkus.security.DbAuditLogger;
-import de.augmentia.quad.quarkus.workflow.engine.WorkflowEngine;
+import de.augmentia.quad.workflow.engine.WorkflowEngine;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -434,7 +436,7 @@ public class AgentController {
     public Response listWorkflowRuns(@PathParam("id") String id) {
         if (state.workflows().get(id) == null) return Response.status(404).entity(Map.of("error", "Workflow not found")).build();
         return Response.ok(runStore.listForWorkflow(id).stream()
-            .map(RunStore.RunState::snapshot).map(RunStore.WorkflowRun::toJson).toList()).build();
+            .map(WorkflowRunState::snapshot).map(WorkflowRunSnapshot::toJson).toList()).build();
     }
 
     // ─── Runs ───────────────────────────────────────────────
@@ -442,7 +444,7 @@ public class AgentController {
     @GET @Path("/workflow-runs")
     public Response listAllWorkflowRuns() {
         return Response.ok(runStore.listAll().stream()
-                .map(RunStore.RunState::snapshot).map(RunStore.WorkflowRun::toJson).toList()).build();
+                .map(WorkflowRunState::snapshot).map(WorkflowRunSnapshot::toJson).toList()).build();
     }
 
     @GET @Path("/runs/{runId}")
@@ -680,7 +682,7 @@ public class AgentController {
         return defaultExecuteTimeoutMs;
     }
 
-    private boolean matchesPeriod(RunStore.RunState run, String period) {
+    private boolean matchesPeriod(WorkflowRunState run, String period) {
         if (period == null || period.isBlank() || "all".equals(period)) return true;
         String startedAt = run.startedAt;
         LocalDateTime st;
@@ -698,18 +700,18 @@ public class AgentController {
         };
     }
 
-    private boolean matchesKind(RunStore.RunState run, String kind) {
+    private boolean matchesKind(WorkflowRunState run, String kind) {
         if (kind == null || kind.isBlank() || "all".equals(kind)) return true;
         String k = String.valueOf(run.kind).toLowerCase(java.util.Locale.ROOT);
         return k.equals(kind.toLowerCase(java.util.Locale.ROOT));
     }
 
-    private boolean matchesStatus(RunStore.RunState run, String status) {
+    private boolean matchesStatus(WorkflowRunState run, String status) {
         if (status == null || status.isBlank() || "all".equals(status)) return true;
         return status.equalsIgnoreCase(String.valueOf(run.status));
     }
 
-    private boolean matchesRunId(RunStore.RunState run, String runId) {
+    private boolean matchesRunId(WorkflowRunState run, String runId) {
         if (runId == null || runId.isBlank() || "all".equals(runId)) return true;
         return String.valueOf(run.runId).contains(runId)
                 || String.valueOf(run.workflowId).contains(runId);

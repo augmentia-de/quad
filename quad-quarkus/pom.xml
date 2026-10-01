@@ -41,12 +41,19 @@
         </dependency>
         <dependency>
             <groupId>de.augmentia.quad</groupId>
-            <artifactId>quad-search-elasticsearch</artifactId>
+            <artifactId>quad-contract</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>de.augmentia.quad</groupId>
-            <artifactId>quad-search-pgvector</artifactId>
+            <artifactId>quad-workflow-engine</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- Quarkus-/Arc-Adapter: CDI-Produzenten fuer den Modell-Stack, Jandex-Index
+             und Native-Image-Hints fuer die reflektive Tool-Invocation. -->
+        <dependency>
+            <groupId>de.augmentia.quad</groupId>
+            <artifactId>quad-quarkus-core</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -151,6 +158,27 @@
             <artifactId>mcp-core</artifactId>
             <version>2.0.0</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.inject</groupId>
+            <artifactId>jakarta.inject-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.enterprise</groupId>
+            <artifactId>jakarta.enterprise.cdi-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.ws.rs</groupId>
+            <artifactId>jakarta.ws.rs-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 

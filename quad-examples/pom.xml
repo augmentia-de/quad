@@ -36,11 +36,6 @@
         </dependency>
         <dependency>
             <groupId>de.augmentia.quad</groupId>
-            <artifactId>quad-search-pgvector</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>de.augmentia.quad</groupId>
             <artifactId>quad-quarkus</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -67,6 +62,10 @@
         </dependency>
 
 
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

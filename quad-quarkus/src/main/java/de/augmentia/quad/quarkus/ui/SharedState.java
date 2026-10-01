@@ -1,6 +1,6 @@
 package de.augmentia.quad.quarkus.ui;
 
-import de.augmentia.quad.quarkus.contract.ApiDtos;
+import de.augmentia.quad.contract.ApiDtos;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

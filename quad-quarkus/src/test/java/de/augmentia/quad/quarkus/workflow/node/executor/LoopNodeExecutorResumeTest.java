@@ -1,13 +1,16 @@
 package de.augmentia.quad.quarkus.workflow.node.executor;
 
 import de.augmentia.quad.core.session.AgentSessionState;
+import de.augmentia.quad.core.workflow.run.WorkflowRunState;
 import de.augmentia.quad.quarkus.persistence.RunStore;
 import de.augmentia.quad.quarkus.persistence.SqlDialect;
 import de.augmentia.quad.quarkus.persistence.StepSnapshotStore;
 import de.augmentia.quad.quarkus.ui.PersistenceStore;
-import de.augmentia.quad.quarkus.workflow.internal.RunStateWriter;
-import de.augmentia.quad.quarkus.workflow.internal.WorkflowExecutionContext;
-import de.augmentia.quad.quarkus.workflow.node.NodeRunner;
+import de.augmentia.quad.quarkus.workflow.adapter.StepCheckpointAdapter;
+import de.augmentia.quad.workflow.engine.internal.RunStateWriter;
+import de.augmentia.quad.workflow.engine.internal.WorkflowExecutionContext;
+import de.augmentia.quad.workflow.engine.node.NodeRunner;
+import de.augmentia.quad.workflow.engine.node.executor.LoopNodeExecutor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.sqlite.SQLiteConfig;
@@ -33,12 +36,6 @@ class LoopNodeExecutorResumeTest {
 
     @TempDir
     Path tempDir;
-
-    private static void injectRunWriter(Object target, RunStateWriter writer) throws Exception {
-        var field = LoopNodeExecutor.class.getDeclaredField("runWriter");
-        field.setAccessible(true);
-        field.set(target, writer);
-    }
 
     private static SqlDialect sqliteDialect() {
         SqlDialect d = new SqlDialect();
@@ -96,19 +93,15 @@ class LoopNodeExecutorResumeTest {
         StepSnapshotStore snapshotStore = new StepSnapshotStore();
         snapshotStore.setDataSource(ds);
         snapshotStore.setDialect(sqliteDialect());
-        RunStateWriter writer = new RunStateWriter();
-        var rs = RunStateWriter.class.getDeclaredField("runStore");
-        rs.setAccessible(true);
-        rs.set(writer, newRunStore(ds));
-        var ss = RunStateWriter.class.getDeclaredField("snapshotStore");
-        ss.setAccessible(true);
-        ss.set(writer, snapshotStore);
-        return writer;
+        // Seit der Engine-Extraktion nimmt RunStateWriter seine beiden Ports
+        // im Konstruktor statt per Feld-Injection. StepCheckpointAdapter ist
+        // genau die Uebersetzung StepSnapshotStore -> StepCheckpointPort.
+        return new RunStateWriter(newRunStore(ds), new StepCheckpointAdapter(snapshotStore));
     }
 
     private WorkflowExecutionContext ctx(boolean resume) throws Exception {
         RunStore store = newRunStore(newDb());
-        RunStore.RunState run = store.create("wf", List.of("loop", "body"));
+        WorkflowRunState run = store.create("wf", List.of("loop", "body"));
         return new WorkflowExecutionContext(run.runId, run, "", "", new AgentSessionState(), resume);
     }
 
@@ -132,8 +125,7 @@ class LoopNodeExecutorResumeTest {
     @Test
     void freshRunRunsBodyThrice() throws Exception {
         RunStateWriter writer = newRunWriter();
-        LoopNodeExecutor ex = new LoopNodeExecutor();
-        injectRunWriter(ex, writer);
+        LoopNodeExecutor ex = new LoopNodeExecutor(writer);
 
         AtomicInteger bodyRuns = new AtomicInteger();
         WorkflowExecutionContext fresh = ctx(false);
@@ -147,8 +139,7 @@ class LoopNodeExecutorResumeTest {
     @Test
     void resumeMidLoopDoesNotReRunCompletedIterations() throws Exception {
         RunStateWriter writer = newRunWriter();
-        LoopNodeExecutor ex = new LoopNodeExecutor();
-        injectRunWriter(ex, writer);
+        LoopNodeExecutor ex = new LoopNodeExecutor(writer);
 
         // Snapshot restore from checkpoint: iteration 2 was in progress (checkpoint carries loopIterations=2).
         WorkflowExecutionContext resume = ctx(true);
@@ -167,8 +158,7 @@ class LoopNodeExecutorResumeTest {
     @Test
     void resumeAtAlmostDoneIterationOnlyReRunsRemaining() throws Exception {
         RunStateWriter writer = newRunWriter();
-        LoopNodeExecutor ex = new LoopNodeExecutor();
-        injectRunWriter(ex, writer);
+        LoopNodeExecutor ex = new LoopNodeExecutor(writer);
 
         // Iteration 3 (last) was in progress → only that one is re-run.
         WorkflowExecutionContext resume = ctx(true);

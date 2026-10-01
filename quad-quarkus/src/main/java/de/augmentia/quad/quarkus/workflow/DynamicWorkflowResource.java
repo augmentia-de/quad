@@ -2,9 +2,9 @@ package de.augmentia.quad.quarkus.workflow;
 
 import de.augmentia.quad.quarkus.ui.SharedState;
 import de.augmentia.quad.quarkus.persistence.AuditStore;
-import de.augmentia.quad.quarkus.contract.ApiDtos;
+import de.augmentia.quad.contract.ApiDtos;
 import de.augmentia.quad.quarkus.persistence.RunStore;
-import de.augmentia.quad.quarkus.workflow.engine.WorkflowEngine;
+import de.augmentia.quad.workflow.engine.WorkflowEngine;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

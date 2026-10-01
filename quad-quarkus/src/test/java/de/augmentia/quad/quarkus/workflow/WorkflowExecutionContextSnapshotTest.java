@@ -1,8 +1,9 @@
 package de.augmentia.quad.quarkus.workflow;
 
 import de.augmentia.quad.core.session.AgentSessionState;
+import de.augmentia.quad.core.workflow.run.WorkflowRunState;
 import de.augmentia.quad.quarkus.persistence.RunStore;
-import de.augmentia.quad.quarkus.workflow.internal.WorkflowExecutionContext;
+import de.augmentia.quad.workflow.engine.internal.WorkflowExecutionContext;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -20,7 +21,7 @@ class WorkflowExecutionContextSnapshotTest {
 
     private WorkflowExecutionContext newCtx() {
         RunStore store = new RunStore();
-        RunStore.RunState run = store.create("wf", List.of("n1", "loop", "n2"));
+        WorkflowRunState run = store.create("wf", List.of("n1", "loop", "n2"));
         return new WorkflowExecutionContext(run.runId, run, "", "", new AgentSessionState(), true);
     }
 

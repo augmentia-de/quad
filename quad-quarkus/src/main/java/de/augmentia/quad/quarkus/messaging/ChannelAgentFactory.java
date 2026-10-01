@@ -4,7 +4,6 @@ import de.augmentia.quad.core.agent.Agent;
 import de.augmentia.quad.core.agent.AgentBuilder;
 import de.augmentia.quad.core.config.StructuredOutputConfig;
 import de.augmentia.quad.core.agent.SessionStateFactory;
-import de.augmentia.quad.core.config.TieredModelConfig;
 import de.augmentia.quad.core.session.AgentSessionState;
 import de.augmentia.quad.core.session.InMemorySessionManager;
 import de.augmentia.quad.core.session.memory.SessionMemory;
@@ -15,14 +14,14 @@ import de.augmentia.quad.core.gdpr.GdprAgentPlugin;
 import de.augmentia.quad.core.gdpr.PiiAnonymizerHook;
 import de.augmentia.quad.quarkus.agent.AgentBuilderFactory;
 import de.augmentia.quad.quarkus.agent.hook.HookRegistry;
-import de.augmentia.quad.quarkus.agent.config.TieredChatModel;
+import de.augmentia.quad.quarkus.core.model.TieredChatModel;
 import de.augmentia.quad.quarkus.guardrails.GuardrailFactory;
 import de.augmentia.quad.quarkus.mcp.McpManagerService;
 import de.augmentia.quad.quarkus.ui.DemoAgent;
 import de.augmentia.quad.quarkus.ui.SharedState;
 import de.augmentia.quad.quarkus.ui.AgentBean;
 import de.augmentia.quad.quarkus.ui.UiConfig;
-import de.augmentia.quad.quarkus.contract.ApiDtos;
+import de.augmentia.quad.contract.ApiDtos;
 import de.augmentia.quad.quarkus.persistence.JournalService;
 import de.augmentia.quad.quarkus.persistence.AgentStepExporter;
 import de.augmentia.quad.quarkus.hitl.HitlService;
@@ -65,6 +64,8 @@ public class ChannelAgentFactory {
     @Inject SkillService skillService;
     @Inject HitlService hitlService;
     @Inject HookRegistry hookRegistry;
+    /** Aus quad-quarkus-core: der Modell-Stack kommt als CDI-Bean statt per new. */
+    @Inject TieredChatModel tieredChatModel;
 
     @ConfigProperty(name = "quad.model.tiers.enabled", defaultValue = "true")
     boolean modelTiersEnabled;
@@ -158,8 +159,7 @@ public class ChannelAgentFactory {
         builder = applySkills(builder.withTools(tools), def);
         var agent = builder.withLogging().build();
         if (modelTiersEnabled) {
-            agent.setLlm(new TieredChatModel(
-                TieredModelConfig.fromEnv()));
+            agent.setLlm(tieredChatModel);
         }
         agent.setStateFactory(stateFactory);
 

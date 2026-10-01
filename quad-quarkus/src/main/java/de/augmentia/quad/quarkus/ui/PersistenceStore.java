@@ -10,7 +10,9 @@ import javax.sql.DataSource;
 import java.sql.*;
 import java.util.*;
 
-import de.augmentia.quad.quarkus.contract.ApiDtos;
+import de.augmentia.quad.contract.ApiDtos;
+import de.augmentia.quad.core.workflow.run.WorkflowNodeResult;
+import de.augmentia.quad.core.workflow.run.WorkflowRunState;
 import de.augmentia.quad.quarkus.persistence.RunStore;
 import de.augmentia.quad.quarkus.persistence.SqlDialect;
 
@@ -191,7 +193,7 @@ public class PersistenceStore {
 
     // ── Workflow-State (ersetzt: runs) ──────────────────────
 
-    public void upsertRun(RunStore.RunState run) {
+    public void upsertRun(WorkflowRunState run) {
         String sql = dialect.upsert("workflow_state",
             "id, workflow_id, status, initial_data, step_results, executing_from, restart_count, " +
             "started_at, finished_at, duration_ms, kind, step_index, updated_at",
@@ -206,7 +208,7 @@ public class PersistenceStore {
             ps.setString(3, run.status);
             ps.setString(4, run.initialData);
             List<Map<String, Object>> nodeResults = new ArrayList<>();
-            for (RunStore.NodeRunResult n : run.nodeResults) {
+            for (WorkflowNodeResult n : run.nodeResults) {
                 var m = new LinkedHashMap<String, Object>();
                 m.put("nodeId", n.nodeId());
                 m.put("type", n.type() != null ? n.type() : "");
@@ -276,12 +278,12 @@ public class PersistenceStore {
     }
 
     private RunStore.PersistedRun readRun(ResultSet rs) throws SQLException {
-        List<RunStore.NodeRunResult> results = new ArrayList<>();
+        List<WorkflowNodeResult> results = new ArrayList<>();
         String json = rs.getString("step_results");
         if (json != null && !json.isBlank()) {
             try {
                 var nodes = MAPPER.readValue(json, new TypeReference<List<Map<String, Object>>>() {});
-                for (var n : nodes) results.add(new RunStore.NodeRunResult(
+                for (var n : nodes) results.add(new WorkflowNodeResult(
                     String.valueOf(n.get("nodeId")),
                     n.get("type") != null ? String.valueOf(n.get("type")) : "",
                     n.get("title") != null ? String.valueOf(n.get("title")) : "",

@@ -29,6 +29,8 @@
         <assertj.version>3.26.3</assertj.version>
         <diff-utils.version>5.3.0</diff-utils.version>
         <micrometer.version>1.14.5</micrometer.version>
+        <enforcer-plugin.version>3.6.3</enforcer-plugin.version>
+        <elasticsearch-java.version>8.12.2</elasticsearch-java.version>
     </properties>
 
     <dependencyManagement>
@@ -74,39 +76,41 @@
             </dependency>
             <dependency>
                 <groupId>de.augmentia.quad</groupId>
-                <artifactId>quad-search-elasticsearch</artifactId>
+                <artifactId>quad-workflow-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.augmentia.quad</groupId>
-                <artifactId>quad-search-pgvector</artifactId>
+                <artifactId>quad-workflow-engine</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.augmentia.quad</groupId>
+                <artifactId>quad-contract</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.augmentia.quad</groupId>
+                <artifactId>quad-quarkus-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
 
-    <dependencies>
-        <dependency>
-            <groupId>jakarta.inject</groupId>
-            <artifactId>jakarta.inject-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.enterprise</groupId>
-            <artifactId>jakarta.enterprise.cdi-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.ws.rs</groupId>
-            <artifactId>jakarta.ws.rs-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j</artifactId>
-        </dependency>
-    </dependencies>
+    <!--
+        Kein globales <dependencies>-Block mehr.
+
+        Vorher standen hier jakarta.inject, jakarta.enterprise.cdi-api,
+        jakarta.ws.rs-api, jackson-databind und langchain4j als normale
+        (compile-)Abhaengigkeiten fuer JEDES Modul. Damit war die
+        Framework-Neutralitaet der einzelnen Module nicht durchsetzbar: der
+        Enforcer-Ban auf io.quarkus griff zwar, aber jedes Modul bekam CDI und
+        JAX-RS zwangsweise auferlegt - auch quad-contract und
+        quad-workflow-engine, die genau davon frei sein sollen.
+
+        Die Abhaengigkeiten sind jetzt pro Modul deklariert, wo sie gebraucht
+        werden. dependencyManagement (BOMs + eigene Versionen) bleibt unberuehrt.
+    -->
 
     <modules>
         <module>quad-core</module>
@@ -114,8 +118,9 @@
         <module>quad-tool-builtin</module>
         <module>quad-tool-mcp</module>
         <module>quad-sandbox-docker</module>
-        <module>quad-search-elasticsearch</module>
-        <module>quad-search-pgvector</module>
+        <module>quad-contract</module>
+        <module>quad-workflow-engine</module>
+        <module>quad-quarkus-core</module>
         <module>quad-quarkus</module>
         <module>quad-examples</module>
     </modules>
@@ -154,13 +159,38 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${surefire-plugin.version}</version>
                     <configuration>
-                        <excludedGroups>llm,e2e</excludedGroups>
+                        <!--
+                            Diese Tests brauchen ein laufendes Backend (localhost:8086),
+                            ein LLM oder ein Kafka-Broker und gehoeren darum NICHT in
+                            den Default-Build. Ausfuehren mit -Pintegration-tests.
+
+                            Achtung: JUnit-Tags matchen exakt. "e2e-llm" ist ein eigenes
+                            Tag und wird von "e2e" nicht miterfasst - es muss hier
+                            ausdruecklich genannt sein, sonst laeuft der Test mit und
+                            scheitert im Default-Build an "Connection refused".
+                        -->
+                        <excludedGroups>llm,e2e,e2e-llm</excludedGroups>
                     </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>0.8.12</version>
+                </plugin>
+                <!--
+                    Grenzwaechter zwischen framework-neutralem Kern und
+                    Quarkus-Adapter. Wird von den Modulen mit eigener Regel
+                    konfiguriert.
+                -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>${enforcer-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>io.smallrye</groupId>
+                    <artifactId>jandex-maven-plugin</artifactId>
+                    <version>3.6.0</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -178,7 +208,7 @@
                             <version>${surefire-plugin.version}</version>
                             <configuration>
                                 <excludedGroups combine.self="override"/>
-                                <groups>llm,e2e</groups>
+                                <groups>llm,e2e,e2e-llm</groups>
                             </configuration>
                         </plugin>
                     </plugins>

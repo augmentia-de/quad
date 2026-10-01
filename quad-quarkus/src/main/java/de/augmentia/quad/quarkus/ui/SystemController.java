@@ -9,7 +9,7 @@ import de.augmentia.quad.quarkus.messaging.MessagingRouter;
 import de.augmentia.quad.quarkus.messaging.TopicAgentMapping;
 import de.augmentia.quad.quarkus.persistence.AuditStore;
 import de.augmentia.quad.quarkus.persistence.TelemetryStore;
-import de.augmentia.quad.quarkus.contract.ApiDtos;
+import de.augmentia.quad.contract.ApiDtos;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

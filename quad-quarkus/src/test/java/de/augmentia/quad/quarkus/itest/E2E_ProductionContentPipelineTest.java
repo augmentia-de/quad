@@ -1,6 +1,6 @@
 package de.augmentia.quad.quarkus.itest;
 
-import de.augmentia.quad.quarkus.workflow.engine.WorkflowEngine;
+import de.augmentia.quad.workflow.engine.WorkflowEngine;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
@@ -126,7 +126,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * @see E2eBackendSupport
  * @see WorkflowEngine
- * @see de.augmentia.quad.quarkus.workflow.WorkflowCondition
+ * @see de.augmentia.quad.workflow.engine.WorkflowCondition
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @Tag("e2e")

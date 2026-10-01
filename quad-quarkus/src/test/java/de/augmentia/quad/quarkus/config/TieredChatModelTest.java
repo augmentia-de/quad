@@ -4,7 +4,7 @@ import de.augmentia.quad.core.config.ChatModelConfig;
 import de.augmentia.quad.core.config.ModelProviderType;
 import de.augmentia.quad.core.config.ModelTier;
 import de.augmentia.quad.core.config.TieredModelConfig;
-import de.augmentia.quad.quarkus.agent.config.TieredChatModel;
+import de.augmentia.quad.quarkus.core.model.TieredChatModel;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;

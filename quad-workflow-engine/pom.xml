@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.augmentia.quad</groupId>
+        <artifactId>quad</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>quad-workflow-engine</artifactId>
+    <name>QUAD - Workflow Engine</name>
+    <description>
+        Framework-neutrale Workflow-Ausfuehrung: Graph-Walking, Node-Executors,
+        Bedingungen, Scheduler-Logik. Ausgelagert aus quad-quarkus, damit die
+        Engine ohne Quarkus testbar ist und quad-workflow-worker (Spring Boot)
+        sie direkt nutzen kann statt nur Workflow-Nodes zu serialisieren.
+
+        Persistenz wird ueber Ports (WorkflowRunPort) angebunden - dieses Modul
+        kennt weder Quarkus noch Panache noch JDBC.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.augmentia.quad</groupId>
+            <artifactId>quad-workflow-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.augmentia.quad</groupId>
+            <artifactId>quad-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.augmentia.quad</groupId>
+            <artifactId>quad-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.logging</groupId>
+            <artifactId>jboss-logging</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire-plugin.version}</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${enforcer-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>ban-frameworks</id>
+                        <goals><goal>enforce</goal></goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <searchTransitive>false</searchTransitive>
+                                    <excludes>
+                                        <exclude>io.quarkus:*</exclude>
+                                        <exclude>io.quarkiverse:*</exclude>
+                                        <exclude>org.springframework:*</exclude>
+                                        <exclude>jakarta.ws.rs:*</exclude>
+                                        <exclude>jakarta.enterprise:*</exclude>
+                                        <exclude>jakarta.inject:*</exclude>
+                                        <exclude>org.hibernate:*</exclude>
+                                        <exclude>io.agroal:*</exclude>
+                                    </excludes>
+                                    <message>
+                                        Die Engine ist framework-neutral. Alles
+                                        Framework-spezifische (CDI, REST, Panache,
+                                        Messaging) gehoert in quad-quarkus und wird
+                                        ueber Ports angebunden.
+                                    </message>
+                                </bannedDependencies>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

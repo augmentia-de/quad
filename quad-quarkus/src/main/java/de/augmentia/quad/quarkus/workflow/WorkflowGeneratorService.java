@@ -7,7 +7,7 @@ import de.augmentia.quad.quarkus.mcp.McpManagerService;
 import de.augmentia.quad.quarkus.messaging.ChannelAgentFactory;
 import de.augmentia.quad.quarkus.ui.SharedState;
 import de.augmentia.quad.quarkus.ui.UiConfig;
-import de.augmentia.quad.quarkus.contract.ApiDtos;
+import de.augmentia.quad.contract.ApiDtos;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;

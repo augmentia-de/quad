@@ -9,100 +9,28 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import de.augmentia.quad.core.workflow.run.WorkflowNodeResult;
+import de.augmentia.quad.core.workflow.run.WorkflowRunSnapshot;
+import de.augmentia.quad.core.workflow.run.WorkflowRunState;
 import de.augmentia.quad.quarkus.ui.PersistenceStore;
+import de.augmentia.quad.workflow.engine.port.WorkflowRunPort;
 
 @ApplicationScoped
-public class RunStore {
+public class RunStore implements WorkflowRunPort {
 
     private static final Logger log = Logger.getLogger(RunStore.class);
 
     @Inject
     PersistenceStore db;
 
-    public record NodeRunResult(String nodeId, String type, String title, String status,
-                                String output, String input) {}
-
-    public record WorkflowRun(String runId, String workflowId, String status,
-                              String startedAt, String finishedAt, long durationMs,
-                              List<NodeRunResult> nodeResults, String initialData,
-                              String executingFrom, int restartCount,
-                              String kind, int stepIndex) {
-        public Map<String, Object> toJson() {
-            var m = new LinkedHashMap<String, Object>();
-            m.put("runId", runId);
-            m.put("workflowId", workflowId);
-            m.put("status", status);
-            m.put("startedAt", startedAt);
-            m.put("finishedAt", finishedAt);
-            m.put("durationMs", durationMs);
-            m.put("initialData", initialData != null ? initialData : "");
-            m.put("executingFrom", executingFrom != null ? executingFrom : "");
-            m.put("restartCount", restartCount);
-            m.put("kind", kind != null ? kind : "WORKFLOW");
-            m.put("stepIndex", stepIndex);
-            List<Map<String, Object>> results = new ArrayList<>();
-            for (NodeRunResult n : nodeResults) {
-                var r = new LinkedHashMap<String, Object>();
-                r.put("nodeId", n.nodeId());
-                r.put("type", n.type() != null ? n.type() : "");
-                r.put("title", n.title() != null ? n.title() : "");
-                r.put("status", n.status() != null ? n.status() : "");
-                r.put("output", n.output() != null ? n.output() : "");
-                r.put("input", n.input() != null ? n.input() : "");
-                results.add(r);
-            }
-            m.put("nodeResults", results);
-            return m;
-        }
-    }
-
-    public static final class RunState {
-        public final String runId;
-        public final String workflowId;
-        public final String startedAt;
-        public volatile String status = "running";
-        public volatile String finishedAt;
-        public volatile long durationMs = 0;
-        public volatile String initialData = "";
-        public volatile String executingFrom;
-        public volatile int restartCount = 0;
-        /** Run kind: "WORKFLOW" (default) or "AGENT" - carries the shared run model. */
-        public volatile String kind = "WORKFLOW";
-        /** Step counter; basis for deterministic resume. */
-        public volatile int stepIndex = 0;
-        public final List<NodeRunResult> nodeResults = new CopyOnWriteArrayList<>();
-
-        RunState(String runId, String workflowId) {
-            this.runId = runId;
-            this.workflowId = workflowId;
-            this.startedAt = Instant.now().toString();
-        }
-
-        /** Resets the run and re-executes it from scratch (status + node results). */
-        public void restart() {
-            this.restartCount++;
-            this.status = "running";
-            this.finishedAt = null;
-            this.durationMs = 0;
-            this.executingFrom = null;
-            this.stepIndex = 0;
-            nodeResults.replaceAll(r -> new NodeRunResult(r.nodeId(), r.type(), r.title(), "pending", "", ""));
-        }
-
-        public WorkflowRun snapshot() {
-            return new WorkflowRun(runId, workflowId, status, startedAt, finishedAt, durationMs,
-                List.copyOf(nodeResults), initialData, executingFrom, restartCount, kind, stepIndex);
-        }
-    }
-
     /** Persistierte Run-Zeile from der DB (workflow_state-Tabelle). */
     public record PersistedRun(String runId, String workflowId, String status,
-                               String initialData, List<NodeRunResult> nodeResults,
+                               String initialData, List<WorkflowNodeResult> nodeResults,
                                String executingFrom, int restartCount,
                                String startedAt, String finishedAt, long durationMs,
                                String kind, int stepIndex) {};
 
-    private final ConcurrentHashMap<String, RunState> runs = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, WorkflowRunState> runs = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, List<String>> runsByWorkflow = new ConcurrentHashMap<>();
 
     /** Loads all runs from the workflow_state table on startup (current status always queryable). */
@@ -116,8 +44,8 @@ public class RunStore {
         if (!runs.isEmpty()) log.infof("RunStore: %d Runs from workflow_state geladen", runs.size());
     }
 
-    static RunState fromPersisted(PersistedRun p) {
-        RunState s = new RunState(p.runId(), p.workflowId());
+    static WorkflowRunState fromPersisted(PersistedRun p) {
+        WorkflowRunState s = new WorkflowRunState(p.runId(), p.workflowId(), p.startedAt());
         s.status = p.status();
         s.finishedAt = p.finishedAt();
         s.durationMs = p.durationMs();
@@ -131,27 +59,39 @@ public class RunStore {
     }
 
     /** Holt an persistierten Run from der DB (auch if er not im In-Memory-Cache liegt). */
-    public RunState getOrLoad(String runId) {
-        RunState cached = runs.get(runId);
+    /**
+     * Port-Methode: identisch zu {@link #getOrLoad(String)}.
+     *
+     * <p>Der Name folgt der Engine-Sicht ("lade den Lauf"), der App-Name
+     * ("get-or-load") der Cache-Semantik. Beide bleiben bestehen, weil
+     * {@code getOrLoad} auch ausserhalb des Ports benutzt wird.
+     */
+    @Override
+    public WorkflowRunState load(String runId) {
+        return getOrLoad(runId);
+    }
+
+    public WorkflowRunState getOrLoad(String runId) {
+        WorkflowRunState cached = runs.get(runId);
         if (cached != null) return cached;
         PersistedRun p = db.loadRunFromDb(runId);
         if (p == null) return null;
-        RunState s = fromPersisted(p);
+        WorkflowRunState s = fromPersisted(p);
         runs.put(runId, s);
         runsByWorkflow.computeIfAbsent(s.workflowId, k -> new CopyOnWriteArrayList<>()).add(runId);
         return s;
     }
 
-    public RunState create(String workflowId, List<String> nodes) {
+    public WorkflowRunState create(String workflowId, List<String> nodes) {
         return create(workflowId, nodes, "");
     }
 
-    public RunState create(String workflowId, List<String> nodes, String initialData) {
+    public WorkflowRunState create(String workflowId, List<String> nodes, String initialData) {
         String runId = "run-" + UUID.randomUUID().toString().substring(0, 8);
-        var state = new RunState(runId, workflowId);
+        var state = new WorkflowRunState(runId, workflowId, Instant.now().toString());
         state.initialData = initialData != null ? initialData : "";
         for (var node : nodes) {
-            state.nodeResults.add(new NodeRunResult(node, "", "", "pending", "", ""));
+            state.nodeResults.add(new WorkflowNodeResult(node, "", "", "pending", "", ""));
         }
         runs.put(runId, state);
         runsByWorkflow.computeIfAbsent(workflowId, k -> new CopyOnWriteArrayList<>()).add(runId);
@@ -159,26 +99,41 @@ public class RunStore {
         return state;
     }
 
-    public RunState get(String runId) { return runs.get(runId); }
+    public WorkflowRunState get(String runId) { return runs.get(runId); }
 
-    public List<RunState> listForWorkflow(String workflowId) {
+    public List<WorkflowRunState> listForWorkflow(String workflowId) {
         var ids = runsByWorkflow.getOrDefault(workflowId, List.of());
-        var result = new ArrayList<RunState>();
+        var result = new ArrayList<WorkflowRunState>();
         for (var id : ids) {
             var r = runs.get(id);
             if (r != null) result.add(r);
         }
-        result.sort(Comparator.comparing((RunState r) -> r.startedAt).reversed());
+        result.sort(Comparator.comparing((WorkflowRunState r) -> r.startedAt).reversed());
         return result;
     }
 
-    public List<RunState> listAll() {
+    public List<WorkflowRunState> listAll() {
         var all = new ArrayList<>(runs.values());
-        all.sort(Comparator.comparing((RunState r) -> r.startedAt).reversed());
+        all.sort(Comparator.comparing((WorkflowRunState r) -> r.startedAt).reversed());
         return all;
     }
 
-    public void persistRun(RunState run) {
+    /**
+     * Port-Methode: persistiert den Lauf in die {@code workflow_state}-Tabelle.
+     *
+     * <p>Der In-Memory-Cache braucht hier keine Zuweisung mehr: seit
+     * {@link WorkflowRunState} derselbe Typ ist, den {@link #create} in
+     * {@code runs} ablegt, mutiert die Engine bereits genau das gecachte
+     * Objekt. Vorher waren Engine-Zustand und Store-Zustand zwei verschiedene
+     * Objekte - dort haette ein reines DB-Schreiben den Cache veraltet
+     * zurueckgelassen.
+     */
+    @Override
+    public void save(WorkflowRunState run) {
+        persistRun(run);
+    }
+
+    public void persistRun(WorkflowRunState run) {
         try {
             db.upsertRun(run);
         } catch (Exception e) {

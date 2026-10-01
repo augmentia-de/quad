@@ -1,5 +1,7 @@
 package de.augmentia.quad.quarkus.persistence;
 
+import de.augmentia.quad.core.workflow.run.WorkflowRunSnapshot;
+import de.augmentia.quad.core.workflow.run.WorkflowRunState;
 import de.augmentia.quad.quarkus.ui.PersistenceStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,7 +45,7 @@ class RunStoreTest {
 
     @Test
     void kind_and_stepIndex_survive_db_roundtrip() {
-        RunStore.RunState state = new RunStore.RunState("run-test-1", "wf-1");
+        WorkflowRunState state = new WorkflowRunState("run-test-1", "wf-1", "2025-01-01T00:00:00");
         state.status = "running";
         state.kind = "AGENT";
         state.stepIndex = 5;
@@ -59,23 +61,23 @@ class RunStoreTest {
     @Test
     void defaults_apply_when_kind_or_stepIndex_null() {
         // Simuliert Bestands-Run ohne V17-Spaltenwerte (Rollback-Absicherung MAO2 §3.1).
-        db.upsertRun(new RunStore.RunState("run-test-2", "wf-2"));
+        db.upsertRun(new WorkflowRunState("run-test-2", "wf-2", "2025-01-01T00:00:00"));
 
         RunStore.PersistedRun loaded = db.loadRunFromDb("run-test-2");
         assertNotNull(loaded);
 
-        RunStore.RunState restored = RunStore.fromPersisted(loaded);
+        WorkflowRunState restored = RunStore.fromPersisted(loaded);
         assertEquals("WORKFLOW", restored.kind);
         assertEquals(0, restored.stepIndex);
     }
 
     @Test
     void snapshot_and_toJson_carry_kind_and_stepIndex() {
-        RunStore.RunState state = new RunStore.RunState("run-test-3", "wf-3");
+        WorkflowRunState state = new WorkflowRunState("run-test-3", "wf-3", "2025-01-01T00:00:00");
         state.kind = "WORKFLOW";
         state.stepIndex = 2;
 
-        RunStore.WorkflowRun snapshot = state.snapshot();
+        WorkflowRunSnapshot snapshot = state.snapshot();
         assertEquals("WORKFLOW", snapshot.kind());
         assertEquals(2, snapshot.stepIndex());
         assertEquals("WORKFLOW", snapshot.toJson().get("kind"));

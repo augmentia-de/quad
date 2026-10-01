@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import de.augmentia.quad.core.workflow.transfer.QuadWorkflowSchemaValidator;
-import de.augmentia.quad.quarkus.contract.ApiDtos;
+import de.augmentia.quad.contract.ApiDtos;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 

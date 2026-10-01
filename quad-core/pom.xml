@@ -40,14 +40,16 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Quarkus Arc API (CDI) - provided scope: annotations come from
-             jakarta.enterprise.cdi-api (above); quarkus-arc is a Quarkus runtime
-             artifact and must NOT land on the classpath of non-Quarkus consumers. -->
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-arc</artifactId>
-            <scope>provided</scope>
-        </dependency>
+        <!--
+            Bewusst KEINE io.quarkus-Artefakte mehr. Der Kern ist der framework-
+            neutrale Teil von QUAD und wird u. a. von
+            kafka-platform/quad-workflow-worker (Spring Boot, kein CDI-Container)
+            konsumiert. Frueher stand hier quarkus-arc mit scope=provided; das war
+            nur ueber den Kommentar "must NOT land on the classpath" geregelt und
+            ist jetzt durch den Enforcer-Ban unten ersetzt. Die @ApplicationScoped-/
+            @Inject-Annotationen bleiben erhalten, weil die Quarkus-App die
+            Kern-Beans per Jandex-Index als Arc-Beans entdeckt.
+        -->
 
         <!-- JBoss Logging -->
         <dependency>
@@ -129,6 +131,19 @@
             <groupId>org.eclipse.microprofile.config</groupId>
             <artifactId>microprofile-config-api</artifactId>
         </dependency>
+
+        <!--
+            Elasticsearch-Client fuer ElasticsearchCapabilityIndex. Der Import ist
+            optional: wer den Index nicht nutzt, laedt das 18-MB-Artefakt nicht
+            nach. Ohne dieses optional=true wuerde jeder Konsument von quad-core
+            - auch quad-workflow-worker - den ES-Client transitiv erhalten.
+        -->
+        <dependency>
+            <groupId>co.elastic.clients</groupId>
+            <artifactId>elasticsearch-java</artifactId>
+            <version>${elasticsearch-java.version}</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 
     <build>
@@ -142,6 +157,40 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.12</version>
+            </plugin>
+            <!--
+                quad-core ist der framework-neutrale Kern. Quarkus-/GraalVM-spezifische
+                Dinge gehoeren nach quad-quarkus-core. Der Ban macht die Trennung zu
+                einem Buildfehler statt zu einem Classpath-Zufall.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-quarkus-runtime</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <searchTransitive>true</searchTransitive>
+                                    <excludes>
+                                        <exclude>io.quarkus:*</exclude>
+                                        <exclude>io.quarkiverse:*</exclude>
+                                        <exclude>de.augmentia.quad:quad-quarkus-core</exclude>
+                                    </excludes>
+                                    <message>quad-core bleibt framework-neutral. Quarkus- und
+                                        GraalVM-spezifische Abhaengigkeiten gehoeren nach
+                                        quad-quarkus-core. Betroffen ist auch ein
+                                        Transitiv-Pfad: der Spring-Boot-Worker laedt quad-core
+                                        ohne CDI-Container.</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

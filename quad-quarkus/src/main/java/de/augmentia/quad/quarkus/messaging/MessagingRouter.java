@@ -3,7 +3,7 @@ package de.augmentia.quad.quarkus.messaging;
 import de.augmentia.quad.core.agent.messaging.InboundChannel;
 import de.augmentia.quad.core.agent.messaging.QuadMessage;
 import de.augmentia.quad.core.agent.messaging.OutboundChannel;
-import de.augmentia.quad.quarkus.workflow.engine.WorkflowEngine;
+import de.augmentia.quad.workflow.engine.WorkflowEngine;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
