@@ -77,7 +77,11 @@ public class AgentNodeExecutor implements NodeExecutor {
             long timeoutMs = resolveTimeoutMs(node);
 
             String prompt2;
-            if (config.containsKey("userMessageTemplate") && NodeConfig.isJsonOutputMode(config)) {
+            // A userMessageTemplate applies whenever it is present. It used to require
+            // jsonOutput/jsonInput as well, which made the feature invisible for the common case of
+            // a text-in/text-out agent.
+            if (hasUserMessageTemplate(config)) {
+                inputBuilder.setHistory((sourceId, scope) -> ctx.resolveHistory(sourceId, scope));
                 Map<String, String> templateVars = inputBuilder.buildTemplateVars(node, edges, ctx.outputs(), initialData);
                 prompt2 = inputBuilder.renderTemplate(String.valueOf(config.get("userMessageTemplate")), templateVars);
             } else {
@@ -155,7 +159,8 @@ if ("agent".equals(childType) || "messaging-in".equals(childType) || "messaging-
                 output = "[sent to messaging channel]";
             } else {
                 String prompt2;
-                if (config.containsKey("userMessageTemplate") && NodeConfig.isJsonOutputMode(config)) {
+                if (hasUserMessageTemplate(config)) {
+                    inputBuilder.setHistory((sourceId, scope) -> ctx.resolveHistory(sourceId, scope));
                     Map<String, String> templateVars = inputBuilder.buildTemplateVars(child, edges, outputs, ctx.initialData());
                     prompt2 = inputBuilder.renderTemplate(String.valueOf(config.get("userMessageTemplate")), templateVars);
                 } else {
@@ -291,6 +296,11 @@ if ("agent".equals(childType) || "messaging-in".equals(childType) || "messaging-
             return nodePrefix;
         }
         return ctx.currentPrefix();
+    }
+
+    /** True when the node declares a non-blank {@code userMessageTemplate}. */
+    static boolean hasUserMessageTemplate(Map<String, Object> config) {
+        return config.get("userMessageTemplate") instanceof String s && !s.isBlank();
     }
 
     private String agentIdOf(Map<String, Object> node) {

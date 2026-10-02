@@ -1,7 +1,6 @@
 package de.augmentia.quad.core.agent.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import de.augmentia.quad.core.annotation.Idempotent;
 import de.augmentia.quad.core.events.ToolExecutionFinishedEvent;
 import de.augmentia.quad.core.events.ToolExecutionStartedEvent;
 import de.augmentia.quad.core.hook.pipeline.HookContexts;
@@ -197,13 +196,17 @@ public class ToolExecutor {
         }
     }
 
+    /**
+     * Whether a tool may be served from the idempotency cache.
+     *
+     * <p>Reads {@link de.augmentia.quad.core.tool.ToolMeta#idempotent()}, which is materialised
+     * from {@code @Idempotent} on the tool method at registration time. The previous
+     * implementation reflected on {@code tool.getClass().getMethod("spec")}, which carries the
+     * annotation only if a hand-written {@code ToolMethod} puts it there — reflective tools never
+     * did, so the cache was dead.
+     */
     private boolean isIdempotentTool(ToolMethod tool) {
-        try {
-            var method = tool.getClass().getMethod("spec");
-            return method.isAnnotationPresent(Idempotent.class);
-        } catch (NoSuchMethodException e) {
-            return false;
-        }
+        return tool != null && tool.meta() != null && tool.meta().idempotent();
     }
 
     public HookRegistry getHookRegistry() {

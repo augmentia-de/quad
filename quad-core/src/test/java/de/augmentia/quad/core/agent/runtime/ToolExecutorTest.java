@@ -2,6 +2,9 @@ package de.augmentia.quad.core.agent.runtime;
 
 import de.augmentia.quad.core.annotation.Idempotent;
 import de.augmentia.quad.core.session.AgentSessionState;
+import de.augmentia.quad.core.tool.ReflectiveToolMethod;
+import de.augmentia.quad.core.tool.ToolArgsMapper;
+import de.augmentia.quad.core.tool.ToolMeta;
 import de.augmentia.quad.core.tool.ToolMethod;
 import de.augmentia.quad.core.tool.ToolResult;
 import dev.langchain4j.agent.tool.ToolSpecification;
@@ -15,14 +18,29 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ToolExecutorTest {
 
+    /**
+     * A hand-written {@link ToolMethod} may still declare its metadata directly. The default
+     * {@link ToolMethod#meta()} derives a non-idempotent meta, so this variant overrides it —
+     * that is the intended way to express idempotency without an annotation.
+     *
+     * <p>This test used to put {@code @Idempotent} on {@code spec()} and thereby pinned the
+     * defect described in TODO2 A6: the executor reflected on the {@code spec()} method of the
+     * implementation class instead of reading metadata. It is kept as a plain hand-written-tool
+     * test now; the reflective path is covered by
+     * {@code idempotent_annotationOnToolMethod_shouldActivateTheCache}.
+     */
     @Test
-    void idempotent_tool_replays_cached_result() throws Exception {
+    void handWrittenToolWithIdempotentMeta_replaysCachedResult() throws Exception {
         var calls = new AtomicInteger();
         ToolMethod idem = new ToolMethod() {
             @Override
-            @Idempotent
             public ToolSpecification spec() {
                 return ToolSpecification.builder().name("idempotent").description("").build();
+            }
+
+            @Override
+            public ToolMeta meta() {
+                return ToolMeta.simple(spec().name(), spec().description()).withIdempotent(true);
             }
 
             @Override
@@ -33,7 +51,6 @@ class ToolExecutorTest {
         };
 
         AgentSessionState state = new AgentSessionState();
-        // Mit geheftetem EventPublisher → keine NPE in publish*
         var executor = new ToolExecutor(new IdempotencyStore(), new OTelAgentTracer(), new AgentEventPublisher());
 
         ToolResult first = executor.execute(idem, "{}", state);
@@ -42,6 +59,87 @@ class ToolExecutorTest {
         assertEquals("result-1", first.text());
         assertEquals("result-1", second.text()); // cached, not re-run
         assertEquals(1, calls.get());
+    }
+
+    /** Tool-Methode mit {@code @Idempotent} an der annotierten Methode, wie es gedacht ist. */
+    public static class IdempotentToolBean {
+        static final AtomicInteger CALLS = new AtomicInteger();
+
+        @de.augmentia.quad.core.annotation.Tool("idempotent tool")
+        @Idempotent
+        public String remember(@de.augmentia.quad.core.annotation.Param("key") String key) {
+            CALLS.incrementAndGet();
+            return "value-for-" + key;
+        }
+    }
+
+    public static class PlainToolBean {
+        static final AtomicInteger CALLS = new AtomicInteger();
+
+        @de.augmentia.quad.core.annotation.Tool("plain tool")
+        public String act(@de.augmentia.quad.core.annotation.Param("key") String key) {
+            CALLS.incrementAndGet();
+            return "acted-" + key;
+        }
+    }
+
+    @Test
+    void idempotent_annotationOnToolMethod_shouldActivateTheCache() throws Exception {
+        IdempotentToolBean.CALLS.set(0);
+        var bean = new IdempotentToolBean();
+        var tm = new ReflectiveToolMethod(
+                IdempotentToolBean.class.getMethod("remember", String.class),
+                bean, new ToolArgsMapper(new com.fasterxml.jackson.databind.ObjectMapper()));
+
+        var state = new AgentSessionState();
+        var executor = new ToolExecutor(new IdempotencyStore(), new OTelAgentTracer(), new AgentEventPublisher());
+
+        ToolResult first = executor.execute(tm, "{\"key\":\"k1\"}", state);
+        ToolResult second = executor.execute(tm, "{\"key\":\"k1\"}", state);
+
+        assertEquals(first.text(), second.text());
+        assertEquals(1, IdempotentToolBean.CALLS.get(),
+                "@Idempotent an der Tool-Methode muss den Cache aktivieren (TODO2 A6 behoben: "
+                        + "die Annotation wird jetzt in ToolMeta materialisiert)");
+    }
+
+    @Test
+    void metaCarriesIdempotencyFromTheToolMethodAnnotation() throws Exception {
+        var tm = new ReflectiveToolMethod(
+                IdempotentToolBean.class.getMethod("remember", String.class),
+                new IdempotentToolBean(),
+                new ToolArgsMapper(new com.fasterxml.jackson.databind.ObjectMapper()));
+
+        assertTrue(tm.meta().idempotent());
+    }
+
+    @Test
+    void metaCarriesDescriptionFromTheToolAnnotation() throws Exception {
+        var tm = new ReflectiveToolMethod(
+                PlainToolBean.class.getMethod("act", String.class),
+                new PlainToolBean(),
+                new ToolArgsMapper(new com.fasterxml.jackson.databind.ObjectMapper()));
+
+        assertEquals("plain tool", tm.meta().description());
+        assertFalse(tm.meta().idempotent());
+    }
+
+    @Test
+    void regression_nonIdempotentToolAlwaysExecutes() throws Exception {
+        PlainToolBean.CALLS.set(0);
+        var bean = new PlainToolBean();
+        var tm = new ReflectiveToolMethod(
+                PlainToolBean.class.getMethod("act", String.class),
+                bean, new ToolArgsMapper(new com.fasterxml.jackson.databind.ObjectMapper()));
+
+        var state = new AgentSessionState();
+        var executor = new ToolExecutor(new IdempotencyStore(), new OTelAgentTracer(), new AgentEventPublisher());
+
+        executor.execute(tm, "{\"key\":\"k2\"}", state);
+        executor.execute(tm, "{\"key\":\"k2\"}", state);
+
+        assertEquals(2, PlainToolBean.CALLS.get(),
+                "ohne @Idempotent wird jedes Mal ausgefuehrt");
     }
 
     @Test

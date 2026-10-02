@@ -4,18 +4,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.augmentia.quad.core.session.AgentSessionState;
 import dev.langchain4j.agent.tool.ToolSpecification;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 /**
  * Dynamic tool activation: registers/deregisters tools at runtime.
  * Recommended by capability_search and invoked by the agent.
+ *
+ * <p>Failure paths return {@link ToolResult#error(String)}. Wrapping them in
+ * {@code ToolResult.success} made them indistinguishable from an actual activation, so the model
+ * had no way to tell "activated" from "you passed a bad action" and simply repeated the call.
  */
 public class ToolActivatorTool implements ToolMethod {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
     private final QuadToolRegistry registry;
-    private final Map<String, ToolMethod> available = new ConcurrentHashMap<>();
+    private final java.util.Map<String, ToolMethod> available = new java.util.concurrent.ConcurrentHashMap<>();
     private final ToolSpecification spec;
 
     public ToolActivatorTool(QuadToolRegistry registry) {
@@ -24,6 +26,13 @@ public class ToolActivatorTool implements ToolMethod {
             .name("tool_activator")
             .description("Activate or deactivate a tool by name. "
                 + "Use action=\"add\" to make a tool available, action=\"remove\" to hide it.")
+            // The model is expected to send `action` and `tool`; without a schema it cannot know
+            // that. Declared from one description so docs and schema cannot drift apart.
+            .parameters(dev.langchain4j.model.chat.request.json.JsonObjectSchema.builder()
+                .addStringProperty("action", "Either \"add\" to activate a tool or \"remove\" to deactivate it.")
+                .addStringProperty("tool", "Name of the tool to activate or deactivate.")
+                .required("action", "tool")
+                .build())
             .build();
     }
 
@@ -36,27 +45,41 @@ public class ToolActivatorTool implements ToolMethod {
     public ToolSpecification spec() { return spec; }
 
     @Override
-    public ToolResult execute(String jsonArguments, AgentSessionState state) throws Exception {
-        var node = MAPPER.readTree(jsonArguments);
-        var action = node.has("action") ? node.get("action").asText() : null;
-        var tool = node.has("tool") ? node.get("tool").asText() : null;
+    public ToolMeta meta() {
+        return ToolMeta.simple(spec.name(), spec.description());
+    }
 
-        if (action == null || tool == null)
-            return ToolResult.success("Both 'action' and 'tool' parameters are required.");
+    @Override
+    public ToolResult execute(String jsonArguments, AgentSessionState state) throws Exception {
+        if (jsonArguments == null || jsonArguments.isBlank()) {
+            return ToolResult.error("Missing arguments: both 'action' and 'tool' are required.");
+        }
+        var node = MAPPER.readTree(jsonArguments);
+        var action = node.hasNonNull("action") ? node.get("action").asText() : null;
+        var tool = node.hasNonNull("tool") ? node.get("tool").asText() : null;
+
+        if (action == null || tool == null) {
+            return ToolResult.error("Both 'action' and 'tool' parameters are required. "
+                    + "Available tools: " + available.keySet());
+        }
 
         return switch (action) {
             case "add" -> {
                 var toolMethod = available.get(tool);
-                if (toolMethod == null)
-                    yield ToolResult.success("Unknown tool '" + tool + "'. Available: " + available.keySet());
+                if (toolMethod == null) {
+                    yield ToolResult.error("Unknown tool '" + tool + "'. Available: " + available.keySet());
+                }
                 registry.register(tool, toolMethod);
                 yield ToolResult.success("Tool '" + tool + "' activated.");
             }
             case "remove" -> {
+                if (available.get(tool) == null) {
+                    yield ToolResult.error("Unknown tool '" + tool + "'. Available: " + available.keySet());
+                }
                 registry.remove(tool);
                 yield ToolResult.success("Tool '" + tool + "' deactivated.");
             }
-            default -> ToolResult.success("Unknown action '" + action + "'. Use 'add' or 'remove'.");
+            default -> ToolResult.error("Unknown action '" + action + "'. Use 'add' or 'remove'.");
         };
     }
 }

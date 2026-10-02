@@ -122,12 +122,12 @@ public class PromptAssembler {
         // system prompt. The schema is enforced exclusively via `response_format` (responseFormat),
         // not via a duplicated schema section in the system prompt.
         if (jsonInput) {
-            if (userMessageTemplate != null && !userMessageTemplate.isBlank()) {
-                String rendered = renderUserMessageTemplate(prompt, userMessageTemplate);
-                messages.add(dev.langchain4j.data.message.UserMessage.from(rendered));
-            } else {
-                messages.add(dev.langchain4j.data.message.UserMessage.from(prompt));
-            }
+            // A workflow node may have rendered the template already (AgentNodeExecutor does that
+            // from the predecessor outputs). In that case `prompt` is plain text and rendering
+            // again would throw the result away. Template substitution therefore applies only when
+            // the prompt really is a JSON document, which is the start-envelope case.
+            String rendered = renderUserMessageTemplate(prompt, userMessageTemplate);
+            messages.add(dev.langchain4j.data.message.UserMessage.from(rendered));
         } else if (systemPrompt != null && !systemPrompt.isBlank()) {
             messages.add(dev.langchain4j.data.message.UserMessage.from(prompt));
         } else {
@@ -164,29 +164,65 @@ public class PromptAssembler {
     }
 
     /**
-     * Renders the user message template by parsing the input JSON and substituting variables.
-     * Replaces {@code {{key}}} with values from the JSON input.
+     * Renders a user-message template against a JSON input document.
+     *
+     * <p>Substitutes {@code {{key}}} with the fields of {@code inputJson}. If the input is not a
+     * JSON object — the common case once a workflow node has already rendered its template — the
+     * input is returned unchanged. It is already the final prompt in that case, and substituting
+     * against a non-JSON string used to discard it and return the raw template, which lost every
+     * resolved value.
+     *
+     * @param inputJson prompt text or a JSON document
+     * @param template  template to apply; may be null or blank
      */
     public static String renderUserMessageTemplate(String inputJson, String template) {
-        if (inputJson == null || inputJson.isBlank()) return template;
+        if (template == null || template.isBlank()) {
+            return inputJson != null ? inputJson : "";
+        }
+        if (inputJson == null || inputJson.isBlank()) {
+            return template;
+        }
+
+        com.fasterxml.jackson.databind.JsonNode tree;
         try {
-            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            var tree = mapper.readTree(inputJson);
-            String result = template;
-            if (tree.isObject()) {
-                var fields = tree.fields();
-                while (fields.hasNext()) {
-                    var entry = fields.next();
-                    String placeholder = "{{" + entry.getKey() + "}}";
-                    String value = entry.getValue().isTextual()
-                            ? entry.getValue().asText()
-                            : mapper.writeValueAsString(entry.getValue());
-                    result = result.replace(placeholder, value);
-                }
-            }
-            return result;
+            tree = new com.fasterxml.jackson.databind.ObjectMapper().readTree(inputJson);
+        } catch (Exception notJson) {
+            // Plain-text prompt: a workflow node already rendered it, so it is final. Applying the
+            // template again would discard every resolved value.
+            return inputJson;
+        }
+        if (tree == null || !tree.isObject()) {
+            // A JSON array or scalar carries no field names to substitute.
+            return inputJson;
+        }
+
+        // {{input}} means "the whole document". Resolve it before the field pass so a JSON field
+        // literally named "input" cannot claim the placeholder.
+        String result = template;
+        if (result.contains("{{input}}")) {
+            result = result.replace("{{input}}", inputJson);
+        }
+
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var fields = tree.fields();
+        while (fields.hasNext()) {
+            var entry = fields.next();
+            String placeholder = "{{" + entry.getKey() + "}}";
+            if (!result.contains(placeholder)) continue;
+            String value = entry.getValue().isTextual()
+                    ? entry.getValue().asText()
+                    : writeValue(mapper, entry.getValue());
+            result = result.replace(placeholder, value);
+        }
+        return result;
+    }
+
+    private static String writeValue(com.fasterxml.jackson.databind.ObjectMapper mapper,
+                                     com.fasterxml.jackson.databind.JsonNode node) {
+        try {
+            return mapper.writeValueAsString(node);
         } catch (Exception e) {
-            return template.replace("{{input}}", inputJson);
+            return node.asText();
         }
     }
 }

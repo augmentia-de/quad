@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.augmentia.quad.core.session.AgentSessionState;
 import de.augmentia.quad.core.workflow.run.WorkflowRunState;
 import de.augmentia.quad.workflow.engine.port.WorkflowRunPort;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -46,6 +48,17 @@ private final String runId;
     private final ConcurrentHashMap<String, String> sharedToolFingerprints = new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<String, String> outputs = new ConcurrentHashMap<>();
+    /**
+     * Per-node history of produced values, tagged with the loop iteration that produced them.
+     *
+     * <p>{@link #outputs} keeps only the last value, and {@code LoopNodeExecutor} clears it before
+     * every iteration. A node therefore cannot see what a sibling produced in the previous round —
+     * the capability an agent loop needs in order to react to reviewer feedback.
+     */
+    private final ConcurrentHashMap<String, List<OutputRecord>> outputHistory = new ConcurrentHashMap<>();
+
+    /** Cap per node so a long run cannot grow the history without bound. */
+    private final int maxHistoryEntries;
     private final ConcurrentHashMap<String, String> statuses = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> joinDeadline = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Integer> loopIterations = new ConcurrentHashMap<>();
@@ -58,6 +71,15 @@ private final String runId;
                                      String fallbackData, AgentSessionState sessionState, boolean resume) {
         this(runId, run, initialData, fallbackData, sessionState, resume, null, false);
     }
+
+    /**
+     * One recorded node output.
+     *
+     * @param iteration loop iteration that produced the value; 0 outside a loop
+     * @param nodeId    node that produced it
+     * @param value     the output text
+     */
+    public record OutputRecord(int iteration, String nodeId, String value) {}
 
     /**
      * Full constructor with a shared cache prefix (Block A) across all agent
@@ -78,6 +100,7 @@ private final String runId;
         this.cachePrefix = cachePrefix;
         this.prefixCaching = prefixCaching;
         this.currentPrefix = prefixCaching ? cachePrefix : null;
+        this.maxHistoryEntries = 10;
     }
 
     public String runId() {
@@ -178,18 +201,86 @@ private final String runId;
         return outputs.get(nodeId);
     }
 
+    /**
+     * Records a node output and appends it to that node's history.
+     *
+     * <p>The history entry is written before {@code outputs} is overwritten so a node reading its
+     * own previous value during the same iteration still sees the last one under {@code last}.
+     */
     public void putOutput(String nodeId, String value) {
+        int iteration = loopIterations.getOrDefault(nodeId, 0);
+        outputHistory.compute(nodeId, (k, list) -> {
+            List<OutputRecord> target = list == null ? new ArrayList<>() : list;
+            target.add(new OutputRecord(iteration, nodeId, value));
+            // Keep the tail: the most recent entries are the ones a loop needs.
+            while (target.size() > maxHistoryEntries) {
+                target.remove(0);
+            }
+            return target;
+        });
         outputs.put(nodeId, value);
+    }
+
+    /** Immutable copy of one node's output history, oldest first. */
+    public List<OutputRecord> outputHistory(String nodeId) {
+        List<OutputRecord> list = outputHistory.get(nodeId);
+        return list == null ? List.of() : List.copyOf(list);
+    }
+
+    /**
+     * Resolves a history query.
+     *
+     * @param nodeId  node to read
+     * @param scope   {@code last} = current value, {@code previousIteration} = newest entry from a
+     *                strictly lower iteration, {@code all} = whole history,
+     *                {@code iteration:N} = newest entry of exactly that iteration
+     */
+    public List<String> resolveHistory(String nodeId, String scope) {
+        if (scope == null || scope.isBlank() || "last".equals(scope)) {
+            String v = outputs.get(nodeId);
+            return v == null ? List.of() : List.of(v);
+        }
+        List<OutputRecord> history = outputHistory(nodeId);
+        String s = scope.trim();
+        if (s.startsWith("iteration:")) {
+            try {
+                int wanted = Integer.parseInt(s.substring("iteration:".length()).trim());
+                return history.stream()
+                        .filter(r -> r.iteration() == wanted)
+                        .map(OutputRecord::value)
+                        .toList();
+            } catch (NumberFormatException e) {
+                return List.of();
+            }
+        }
+        int currentIteration = loopIterations.getOrDefault(nodeId, 0);
+        if ("previousIteration".equals(s)) {
+            return history.stream()
+                    .filter(r -> r.iteration() < currentIteration)
+                    .reduce((a, b) -> b)
+                    .map(r -> List.of(r.value()))
+                    .orElse(List.of());
+        }
+        if ("all".equals(s)) {
+            return history.stream().map(OutputRecord::value).toList();
+        }
+        String v = outputs.get(nodeId);
+        return v == null ? List.of() : List.of(v);
+    }
+
+    /** Removes the current value of a node but keeps its history. */
+    public void clearOutput(String nodeId) {
+        outputs.remove(nodeId);
     }
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
-     * Snapshot schema version. Version 2 (level 12) carries {@code loopIterations}
-     * in addition to outputs/statuses/joinDeadline. Old snapshots (without {@code version})
-     * fall back to the nodeResults-based restore logic.
+     * Snapshot schema version. Version 2 carries {@code loopIterations}; version 3 adds
+     * {@code outputHistory}, without which a resumed run loses the previous loop iteration's values.
+     * Older snapshots still restore: the history is then empty and behaviour matches a first run.
      */
-    public static final int SNAPSHOT_VERSION = 2;
+    public static final int SNAPSHOT_VERSION = 3;
 
     /**
      * Serializes the runtime context (outputs, statuses, join deadlines, loop
@@ -206,6 +297,21 @@ private final String runId;
             }
             if (!loopIterations.isEmpty()) {
                 m.put("loopIterations", new LinkedHashMap<>(loopIterations));
+            }
+            if (!outputHistory.isEmpty()) {
+                var history = new LinkedHashMap<String, List<Map<String, Object>>>();
+                for (var e : outputHistory.entrySet()) {
+                    List<Map<String, Object>> entries = new ArrayList<>();
+                    for (OutputRecord r : e.getValue()) {
+                        Map<String, Object> rec = new LinkedHashMap<>();
+                        rec.put("iteration", r.iteration());
+                        rec.put("nodeId", r.nodeId());
+                        rec.put("value", r.value());
+                        entries.add(rec);
+                    }
+                    history.put(e.getKey(), entries);
+                }
+                m.put("outputHistory", history);
             }
             if (sessionState != null) {
                 var summary = new LinkedHashMap<String, Object>();
@@ -258,6 +364,24 @@ private final String runId;
             if (li instanceof Map<?, ?> lm) {
                 for (var e : lm.entrySet()) {
                     if (e.getValue() instanceof Number n) loopIterations.put(String.valueOf(e.getKey()), n.intValue());
+                }
+            }
+            Object oh = m.get("outputHistory");
+            if (oh instanceof Map<?, ?> om) {
+                for (var e : om.entrySet()) {
+                    if (!(e.getValue() instanceof List<?> list)) continue;
+                    List<OutputRecord> restored = new ArrayList<>();
+                    for (Object o : list) {
+                        if (!(o instanceof Map<?, ?> rec)) continue;
+                        Object it = rec.get("iteration");
+                        Object nid = rec.get("nodeId");
+                        Object val = rec.get("value");
+                        restored.add(new OutputRecord(
+                                it instanceof Number n ? n.intValue() : 0,
+                                nid != null ? String.valueOf(nid) : String.valueOf(e.getKey()),
+                                val != null ? String.valueOf(val) : ""));
+                    }
+                    outputHistory.put(String.valueOf(e.getKey()), restored);
                 }
             }
         } catch (Exception e) {

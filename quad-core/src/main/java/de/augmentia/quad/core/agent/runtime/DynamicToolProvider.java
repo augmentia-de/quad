@@ -22,9 +22,7 @@ public class DynamicToolProvider {
     }
 
     public List<ToolSpecification> getToolSpecifications() {
-        return registry.getSpecifications().stream()
-            .map(spec -> (ToolSpecification) spec)
-            .toList();
+        return registry.getSpecifications(false);
     }
 
     public ToolMethod getTool(String name) {
@@ -35,10 +33,15 @@ public class DynamicToolProvider {
         return true;
     }
 
+    /**
+     * @deprecated The returned function echoed its input back instead of a tool result, so every
+     * caller would have received the raw JSON arguments as if they were the answer. Throws instead
+     * of pretending; use {@link ToolExecutor#execute}.
+     */
+    @Deprecated(forRemoval = true)
     public Function<String, String> createToolInvoker(ToolMethod tool) {
-        return jsonArgs -> {
-            // This will be called with session state from the caller
-            return jsonArgs;
-        };
+        throw new UnsupportedOperationException(
+                "createToolInvoker returned its arguments instead of a tool result. "
+                        + "Invoke tools through ToolExecutor.execute(tool, jsonArguments, state).");
     }
 }

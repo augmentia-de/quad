@@ -35,12 +35,69 @@ class WorkflowExecutionContextSnapshotTest {
 
         String json = ctx.snapshotJson();
 
-        assertTrue(json.contains("\"version\":2"), json);
+        assertTrue(json.contains("\"version\":3"), json);
         assertTrue(json.contains("\"outputs\""));
         assertTrue(json.contains("\"statuses\""));
         assertTrue(json.contains("\"joinDeadline\""));
         assertTrue(json.contains("\"loopIterations\""));
         assertTrue(json.contains("\"loop\":3"));
+        // Version 3 adds the output history; without it a resumed loop loses the previous round.
+        assertTrue(json.contains("\"outputHistory\""), json);
+    }
+
+    @Test
+    void outputHistorySurvivesASnapshotRoundTrip() {
+        WorkflowExecutionContext source = newCtx();
+        source.putOutput("reviewer", "iteration-1-feedback");
+        source.putOutput("reviewer", "iteration-2-feedback");
+
+        String json = source.snapshotJson();
+
+        WorkflowExecutionContext target = newCtx();
+        target.restoreSnapshot(json);
+
+        assertEquals(2, target.outputHistory("reviewer").size());
+        assertEquals("iteration-2-feedback", target.outputHistory("reviewer").get(1).value());
+    }
+
+    @Test
+    void previousIterationResolvesThePriorRoundsValue() {
+        WorkflowExecutionContext ctx = newCtx();
+        ctx.loopIterations().put("reviewer", 1);
+        ctx.putOutput("reviewer", "runde-1");
+        ctx.loopIterations().put("reviewer", 2);
+        ctx.putOutput("reviewer", "runde-2");
+
+        assertEquals(java.util.List.of("runde-1"),
+                ctx.resolveHistory("reviewer", "previousIteration"));
+        assertEquals(java.util.List.of("runde-2"),
+                ctx.resolveHistory("reviewer", "iteration:2"));
+        assertEquals(java.util.List.of("runde-1"),
+                ctx.resolveHistory("reviewer", "iteration:1"));
+        assertEquals(java.util.List.of("runde-1", "runde-2"),
+                ctx.resolveHistory("reviewer", "all"));
+        assertEquals(java.util.List.of("runde-2"),
+                ctx.resolveHistory("reviewer", "last"));
+    }
+
+    @Test
+    void clearOutputKeepsTheHistory() {
+        WorkflowExecutionContext ctx = newCtx();
+        ctx.putOutput("designer", "v1");
+        ctx.clearOutput("designer");
+
+        assertTrue(ctx.output("designer") == null);
+        assertEquals("v1", ctx.outputHistory("designer").get(0).value());
+    }
+
+    @Test
+    void legacySnapshotWithoutOutputHistoryRestoresOutputsOnly() {
+        WorkflowExecutionContext ctx = newCtx();
+        ctx.restoreSnapshot("{\"version\":2,\"outputs\":{\"n1\":\"old\"},\"statuses\":{\"n1\":\"completed\"}}");
+
+        assertEquals("old", ctx.output("n1"));
+        assertTrue(ctx.outputHistory("n1").isEmpty(),
+                "ein v2-Snapshot traegt keine Historie; das Verhalten entspricht einem Erstlauf");
     }
 
     @Test

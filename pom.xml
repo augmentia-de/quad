@@ -152,6 +152,16 @@
                     <version>3.13.0</version>
                     <configuration>
                         <release>21</release>
+                        <!--
+                            TODO2 A1: ReflectiveToolMethod nutzt param.getName() als Fallback,
+                            wenn ein @Tool-Parameter kein @Param traegt. Ohne diese Flag liefert
+                            der Compiler "arg0", "arg1", ... — das LLM sendet dann den echten
+                            Namen, das Binding findet nichts, und der Parameter bleibt null,
+                            OHNE Exception. Alle Builtin-Tools tragen @Param und umgingen das
+                            bislang; jedes neue Tool ohne @Param faellt in das Loch.
+                            Der Parameter-Name ist Teil des JSON-Schemas, also nicht optional.
+                        -->
+                        <parameters>true</parameters>
                     </configuration>
                 </plugin>
                 <plugin>
