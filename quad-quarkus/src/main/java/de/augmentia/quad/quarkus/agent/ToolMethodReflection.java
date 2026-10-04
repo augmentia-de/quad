@@ -21,10 +21,10 @@ import dev.langchain4j.http.client.jdk.JdkHttpClientBuilderFactory;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 /**
- * Native-Image: ReflectiveToolMethod findet Tool-Methoden per
- * Class#getDeclaredMethods/getMethod. Ohne Registrierung liefert die
- * Reflection im Native-Image nichts -> "Method not found". Dieser Registrar
- * meldet alle per @Tool/Methoden-Reflexion instanziierten Klassen an.
+ * Native image: ReflectiveToolMethod finds tool methods via
+ * Class#getDeclaredMethods/getMethod. Without registration the
+ * reflection in the native image returns nothing -> "Method not found". This registrar
+ * registers all classes instantiated via @Tool/method reflection.
  */
 @RegisterForReflection(targets = {
         Tool.class,
