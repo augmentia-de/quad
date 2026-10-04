@@ -83,7 +83,7 @@ class LoopNodeExecutorExitScopeTest {
             String id = String.valueOf(node.get("id"));
             if ("reviewer".equals(id)) {
                 int n = runs.merge("reviewer", 1, Integer::sum);
-                c.putOutput("reviewer", n >= 2 ? "OK" : "KRITISCHE FEHLER: Tool fehlt");
+                c.putOutput("reviewer", n >= 2 ? "OK" : "CRITICAL ERRORS: tool missing");
                 return;
             }
             runs.merge(id, 1, Integer::sum);
@@ -118,21 +118,21 @@ class LoopNodeExecutorExitScopeTest {
                 Map.<String, Object>of("source", "reviewer", "target", "L"));
     }
 
-    // ── B2: knotenbezogenes Exit-Prädikat ───────────────────────────────────
+    // ── B2: node-related exit predicate ─────────────────────────────────────
 
     @Test
     void designerOutputContainingOkDoesNotEndTheLoopWhenSourceIsTheReviewer() {
         var ex = new LoopNodeExecutor(writer());
         var outputs = new LinkedHashMap<String, String>();
         outputs.put("designer", "{\"steps\":[{\"note\":\"Looks OK to me\"}]}");
-        outputs.put("reviewer", "KRITISCHE FEHLER: Tool BOOKMARK fehlt.");
+        outputs.put("reviewer", "CRITICAL ERRORS: tool BOOKMARK missing.");
         var runs = new LinkedHashMap<String, Integer>();
 
         ex.execute(loopNode("equals:OK", "reviewer"), nodes(), edges(), ctx(),
                 fixedOutputs(outputs, runs));
 
         assertThat(runs.getOrDefault("designer", 0))
-                .as("TODO2 B2 behoben: mit exitConditionSource=reviewer darf das 'OK' im "
+                .as("TODO2 B2 fixed: with exitConditionSource=reviewer the 'OK' in the "
                         + "Designer-Output den Loop nicht beenden")
                 .isEqualTo(3);
     }
@@ -149,7 +149,7 @@ class LoopNodeExecutorExitScopeTest {
                 fixedOutputs(outputs, runs));
 
         assertThat(runs.getOrDefault("designer", 0))
-                .as("TODO2 B2 behoben: equals:OK auf den Reviewer trifft nach einer Runde")
+                .as("TODO2 B2 fixed: equals:OK on the reviewer matches after one round")
                 .isEqualTo(1);
     }
 
@@ -158,7 +158,7 @@ class LoopNodeExecutorExitScopeTest {
         var ex = new LoopNodeExecutor(writer());
         var outputs = new LinkedHashMap<String, String>();
         outputs.put("designer", "{\"note\":\"Looks OK\"}");
-        outputs.put("reviewer", "KRITISCHE FEHLER: Tool fehlt.");
+        outputs.put("reviewer", "CRITICAL ERRORS: tool missing.");
         var runs = new LinkedHashMap<String, Integer>();
 
         // Without the source the old behaviour applies: contains:OK matches the concatenation.
@@ -183,7 +183,7 @@ class LoopNodeExecutorExitScopeTest {
         assertThat(runs.getOrDefault("designer", 0)).isEqualTo(2);
     }
 
-    // ── B3/B4: Historie über Iterationsgrenzen ──────────────────────────────
+    // ── B3/B4: history across iteration boundaries ───────────────────────────
 
     @Test
     void loopEndsWhenTheReviewerApprovesInARoundTwo() {
@@ -194,7 +194,7 @@ class LoopNodeExecutorExitScopeTest {
                 reviewerThatPassesOnSecondRound(runs));
 
         assertThat(runs.getOrDefault("designer", 0))
-                .as("Runde 1 wird abgelehnt, Runde 2 freigegeben")
+                .as("round 1 is rejected, round 2 is released")
                 .isEqualTo(2);
     }
 
@@ -214,15 +214,15 @@ class LoopNodeExecutorExitScopeTest {
                 return;
             }
             int n = runs.merge("reviewer", 1, Integer::sum);
-            c.putOutput("reviewer", n >= 2 ? "OK" : "KRITISCHE FEHLER: Tool fehlt");
+            c.putOutput("reviewer", n >= 2 ? "OK" : "CRITICAL ERRORS: tool missing");
         };
 
         ex.execute(loopNode("equals:OK", "reviewer"), nodes(), edges(), ctx(), runner);
 
         assertThat(seenByDesigner)
-                .as("TODO2 B3/B4 behoben: Runde 1 sieht noch nichts, Runde 2 sieht das Feedback "
-                        + "aus Runde 1 — obwohl die Outputs zwischen den Runden geloescht werden")
-                .containsExactly("", "KRITISCHE FEHLER: Tool fehlt");
+                .as("TODO2 B3/B4 fixed: round 1 sees nothing yet, round 2 sees the feedback "
+                        + "from round 1 — even though the outputs are cleared between rounds")
+                .containsExactly("", "CRITICAL ERRORS: tool missing");
     }
 
     @Test
@@ -243,7 +243,7 @@ class LoopNodeExecutorExitScopeTest {
         ex.execute(loop, nodes(), edges(), ctx, fixedOutputs(outputs, runs));
 
         assertThat(ctx.output("L"))
-                .as("TODO2 B4: aggregate=all listet jede Runde")
+                .as("TODO2 B4: aggregate=all lists every round")
                 .contains("All iteration outputs")
                 .contains("iteration 1")
                 .contains("iteration 2");
@@ -266,7 +266,7 @@ class LoopNodeExecutorExitScopeTest {
         ex.execute(loop, nodes(), edges(), ctx, fixedOutputs(outputs, runs));
 
         assertThat(ctx.output("L"))
-                .as("TODO2 B4: aggregate=first nimmt die erste Runde")
+                .as("TODO2 B4: aggregate=first takes the first round")
                 .contains("First iteration output")
                 .contains("ERSTE-RUNDE");
     }

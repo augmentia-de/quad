@@ -14,8 +14,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Registry-Vertrag von {@link QuadToolRegistry} (TODO2 A10, A11).
  *
  * <p>Dokumentiert den Vertrag zwischen Registry und Aufrufern: unbekannte Namen, Kollisionen und
- * die Frage, ob der Zustand threadsafe ist. {@link ToolActivatorTool} ist getrennt getestet, weil
- * er Fehler als Erfolg verpackt.
+ * the question of whether the state is thread-safe. {@link ToolActivatorTool} is tested separately because
+ * it packages errors as success.
  */
 class QuadToolRegistryContractTest {
 
@@ -55,7 +55,7 @@ class QuadToolRegistryContractTest {
                 .as("get() bleibt fuer Bestandscode null-liefernd")
                 .isNull();
         assertThat(reg.find("gibt-es-nicht"))
-                .as("TODO2 A10 behoben: find(String) trennt 'fehlt' von 'null' explizit")
+                .as("TODO2 A10 fixed: find(String) explicitly separates 'missing' from 'null'")
                 .isEmpty();
         assertThat(reg.contains("gibt-es-nicht")).isFalse();
     }
@@ -66,7 +66,7 @@ class QuadToolRegistryContractTest {
         reg.register("alpha", stub("alpha", "A"));
 
         assertThat(reg.find("alpha"))
-                .as("TODO2 A10 behoben: Optional<Tool> find(String)")
+                .as("TODO2 A10 fixed: Optional<Tool> find(String)")
                 .isPresent()
                 .get()
                 .satisfies(t -> assertThat(t.spec().name()).isEqualTo("alpha"));
@@ -77,7 +77,7 @@ class QuadToolRegistryContractTest {
         var reg = new QuadToolRegistry(mapper());
         reg.register("alpha", stub("alpha", "A"));
 
-        // List<?> zwingt jeden Consumer zu einem Cast. quad hat vier davon:
+        // List<?> forces every consumer to cast. quad has four of them:
         // AgentRuntime:215, Agent:387, PromptAssembler:68, DynamicToolProvider:25.
         var specs = reg.getSpecifications();
         assertThat(specs).hasSize(1);
@@ -93,7 +93,7 @@ class QuadToolRegistryContractTest {
         reg.register("beta", stub("beta", "B"));
 
         assertThat(reg.size())
-                .as("TODO2 A10 behoben: size() und getToolNames() ergaenzt")
+                .as("TODO2 A10 fixed: size() and getToolNames() added")
                 .isEqualTo(2);
         assertThat(reg.getToolNames()).containsExactlyInAnyOrder("alpha", "beta");
     }
@@ -106,7 +106,7 @@ class QuadToolRegistryContractTest {
         reg.register("dup", stub("dup", "first"));
 
         assertThatThrownBy(() -> reg.register("dup", stub("dup", "second")))
-                .as("TODO2 A10 behoben: last-wins war still, jetzt DuplicateToolNameException")
+                .as("TODO2 A10 fixed: last-wins was silent, now DuplicateToolNameException")
                 .isInstanceOf(QuadToolRegistry.DuplicateToolNameException.class)
                 .hasMessageContaining("dup");
         assertThat(reg.get("dup").execute("{}", null).text())
@@ -158,7 +158,7 @@ class QuadToolRegistryContractTest {
         reg.notifyToolSetChanged(added, removed);
 
         // TODO2 A11: die Methode muesste ein ToolSetChangedEvent feuern. Sie tut nichts.
-        // Nach dem Fix soll hier eine Beobachtung moeglich sein — heute gibt es keine.
+        // After the fix an observation should be possible here — today there is none.
         assertThat(reg.get("alpha"))
                 .as("notifyToolSetChanged feuert kein Event; der Aufrufer kann nicht reagieren")
                 .isNull();

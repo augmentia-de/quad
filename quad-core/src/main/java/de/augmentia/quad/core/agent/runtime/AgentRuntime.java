@@ -21,6 +21,9 @@ import de.augmentia.quad.core.events.ToolExecutionFinishedEvent;
 import de.augmentia.quad.core.events.ToolExecutionStartedEvent;
 import de.augmentia.quad.core.session.AgentSessionState;
 import de.augmentia.quad.core.session.CurrentSession;
+import de.augmentia.quad.core.message.Message;
+import de.augmentia.quad.core.session.memory.ConversationManager;
+import dev.langchain4j.data.message.ChatMessageType;
 import de.augmentia.quad.core.tool.QuadToolRegistry;
 import de.augmentia.quad.core.tool.ToolMethod;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
@@ -32,6 +35,9 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
 
 public class AgentRuntime {
+    private static final java.util.logging.Logger log =
+            java.util.logging.Logger.getLogger(AgentRuntime.class.getName());
+
     private final ChatModel llm;
     private final QuadToolRegistry toolRegistry;
     private final CapabilitySearch capabilitySearch;
@@ -41,6 +47,25 @@ public class AgentRuntime {
     private final SpanFactory spanFactory;
     private final ToolExecutor toolExecutor;
     private final ChannelManager channelManager;
+
+    /**
+     * Bounds the conversation transcript. Without this manager the context grows untrimmed
+     * until the round limit — see {@link #limitContext(List)}.
+     *
+     * <p>Set after construction via {@link #withConversationManager(ConversationManager)},
+     * because otherwise every existing constructor would have to grow by one argument —
+     * and there are at least six of them, including one in the Quarkus layer.
+     */
+    private ConversationManager conversationManager;
+
+    /**
+     * Detects tool loops that are not getting anywhere. Active by default — see
+     * {@link #withStuckDetector(StuckDetector)}.
+     */
+    private StuckDetector stuckDetector = new StuckDetector();
+
+    /** Below this message count nothing is compacted. A short transcript fits. */
+    private static final int MIN_MESSAGES_BEFORE_PRUNE = 10;
 
     private OutputForcer outputForcer;
     private ChatRequestParameters agentChatParameters;
@@ -73,6 +98,45 @@ public class AgentRuntime {
         this.spanFactory = new SpanFactory(tracer);
         this.toolExecutor = toolExecutor;
         this.channelManager = channelManager;
+        this.conversationManager = null;
+    }
+
+    /**
+     * Sets the transcript bound.
+     *
+     * <p><b>Required for unlimited runs.</b> {@code reactMaxIterations = 0} means unlimited
+     * rounds; without a bound the context then grows with every round. With a manager it is
+     * compacted per round — typically a
+     * {@link de.augmentia.quad.core.session.memory.SummarizingSlidingWindowConversationManager},
+     * which summarises older history with a model instead of cutting it.
+     *
+     * <p>If it stays {@code null}, the behaviour from before this extension applies: the
+     * transcript grows untrimmed until the round limit.
+     */
+    public AgentRuntime withConversationManager(ConversationManager conversationManager) {
+        this.conversationManager = conversationManager;
+        return this;
+    }
+
+    /**
+     * Detects a tool loop that is not getting anywhere.
+     *
+     * <p><b>On by default.</b> The detector does not end the cases in which a round limit
+     * would be the right answer — a task that repeats while making progress triggers
+     * nothing. It ends the cases in which the limit was only an alibi: the same tool with
+     * the same arguments, a call sequence in a cycle, a tool inventory that changes and the
+     * work still does not.
+     *
+     * <p>Precisely at {@code maxIterations == 0} it is what bounds the cost. Without it,
+     * unlimited is only defensible with a {@code ConversationManager}; with it, unlimited is
+     * defensible even when a caller switches the manager off.
+     *
+     * <p>{@code null} switches it off. That is why the warning matters in the off case: only
+     * the round limit still applies then, and at {@code 0} not even that.
+     */
+    public AgentRuntime withStuckDetector(StuckDetector stuckDetector) {
+        this.stuckDetector = stuckDetector;
+        return this;
     }
 
     public void setStructuredOutputConfig(StructuredOutputConfig config) {
@@ -206,19 +270,93 @@ public class AgentRuntime {
 
     // ── ReAct loop (Phase 1) ──
 
+/**
+     * ReAct loop.
+     *
+     * <p><b>Round limit:</b> {@code maxIterations == 0} means unlimited. That is
+     * defensible because {@link #limitContext(List)} writes the transcript back into a token
+     * budget every round — the context does not grow without bound, it gets compacted.
+     * Without this step "unlimited" would not be a gain but growing memory and latency
+     * cost on every model call.
+     *
+     * <p><b>Context:</b> {@code limitContext} runs before every model call. Compacting
+     * rather than cutting is the difference between an agent that still knows what to do
+     * after 200 rounds and one that has forgotten the task.
+     */
+    /**
+     * Writes the conversation transcript back into a token budget.
+     *
+     * <p>Falls back to {@link SummarizingSlidingWindowConversationManager} when one is set —
+     * that one summarises older history with a real model and leaves the last
+     * {@code keepLastUserMessages} user blocks untouched. Without a manager nothing is
+     * trimmed, which matches the behaviour from before this change.
+     *
+     * <p><b>The return value is a new list.</b> The manager returns a reduced list, it does
+     * not modify the one passed in; the running loop keeps its full {@code messages} so the
+     * tool history does not get lost successively.
+     *
+     * <p>System and task messages are always pulled forward, because
+     * {@link SummarizingSlidingWindowConversationManager} does preserve them, but a summary
+     * in their place is a worse choice for the task.
+     *
+     * @return the messages that may go to the model
+     */
+    private List<ChatMessage> limitContext(List<ChatMessage> messages) {
+        if (conversationManager == null || messages.size() <= MIN_MESSAGES_BEFORE_PRUNE) {
+            return messages;
+        }
+
+        int leading = 0;
+        while (leading < messages.size() && isPromptMessage(messages.get(leading))) {
+            leading++;
+        }
+        if (leading == messages.size()) {
+            return messages; // only system/task messages — nothing to trim
+        }
+
+        var prompt = List.copyOf(messages.subList(0, leading));
+        var rest = messages.subList(leading, messages.size());
+
+        try {
+            var reduced = conversationManager.prune(rest.stream()
+                    .map(Message::from)
+                    .toList());
+            var result = new ArrayList<ChatMessage>(prompt);
+            reduced.forEach(m -> result.add(m.toChatMessage()));
+            return result;
+        } catch (Exception e) {
+            // A failure while compacting must not abort the run — a broken second call
+            // would be worse than an oversized context.
+            log.warning("Context could not be compacted, "
+                    + "the transcript goes to the model untrimmed: " + e.getMessage());
+            return messages;
+        }
+    }
+
+    /** System, user and task messages belong to the task, not to the transcript. */
+    private static boolean isPromptMessage(ChatMessage message) {
+        return message.type() == ChatMessageType.SYSTEM
+                || message.type() == ChatMessageType.USER;
+    }
+
     private String runReActLoop(List<ChatMessage> messages, int depth) {
-        if (depth >= maxIterations) {
+        if (maxIterations > 0 && depth >= maxIterations) {
             return fallbackToSummary(messages);
         }
 
+        // The transcript is written back into a token budget before every model call.
+        // System and task messages sit at the front and are not compacted — they are the
+        // task, not the transcript.
+        List<ChatMessage> boundedContext = limitContext(messages);
+
         List<ToolSpecification> specs = toolRegistry != null
-                ? toolRegistry.getSpecifications().stream().map(s -> (ToolSpecification) s).toList()
+                ? toolRegistry.getSpecifications().stream().map(s -> s).toList()
                 : List.of();
 
         List<ChatMessage> additional = new ArrayList<>();
         if (hookRegistry != null) {
             var beforeMc = hookRegistry.triggerBeforeModelCall(new HookContexts.BeforeModelCallContext(
-                    sessionId(), new StringBuilder(), messages, specs, additional));
+                    sessionId(), new StringBuilder(), boundedContext, specs, additional));
             if (beforeMc instanceof HookResult.Cancel c) {
                 return "Request cancelled: " + c.reason();
             }
@@ -227,7 +365,7 @@ public class AgentRuntime {
             }
         }
 
-        var requestMessages = new ArrayList<>(messages);
+        var requestMessages = new ArrayList<>(boundedContext);
         requestMessages.addAll(additional);
 
         if (channelManager != null) {
@@ -292,6 +430,15 @@ public class AgentRuntime {
                     String toolResult = executeTool(req);
                     messages.add(new ToolExecutionResultMessage(req.id(), req.name(), toolResult));
                 }
+                // After execution, not before: the detector judges what was done, not what
+                // was intended. And before the recursion step, so that a stuck run ends
+                // instead of paying for the next model call.
+                if (stuckDetector != null) {
+                    StuckDetector.Pattern pattern = stuckDetector.observe(requests);
+                    if (pattern != null) {
+                        return pattern.marker();
+                    }
+                }
                 return runReActLoop(messages, depth + 1);
             }
 
@@ -305,7 +452,13 @@ public class AgentRuntime {
             }
 
             String text = aiMessage.text();
-            if (isSinglePassJson && outputForcer != null && outputForcer.handleResponse(aiMessage, messages)) {
+            // Not only in the single-pass case: with tools isSinglePassJson is false, and a
+            // StructuredOutputConfig that was set was previously discarded silently — neither a
+            // schema reached the request nor did the fallback prompt apply. An agent with
+            // tools could therefore not deliver a structured result at all. The fallback
+            // carries the schema in the prompt and works everywhere; the answer is checked
+            // here, regardless of whether tools are in play.
+            if (outputForcer != null && outputForcer.handleResponse(aiMessage, messages)) {
                 return runReActLoop(messages, depth + 1);
             }
 
@@ -372,15 +525,32 @@ public class AgentRuntime {
 
     // ── Fallback ──
 
+    /**
+     * The answer when the round limit is reached.
+     *
+     * <p><b>The marker is deliberate.</b> The text goes into the workflow output, and a
+     * workflow checks conditions like {@code contains:OK} against it. Before this change a
+     * summary stood here that looked like success — an agent giving up after ten rounds was
+     * indistinguishable for the workflow from one that finished, and
+     * {@code exitCondition: iter>=3} reported success for an aborted run.
+     *
+     * <p>That is why the marker stands at the front and is unambiguous: an
+     * {@code [INCOMPLETE_...]} cannot be a domain output, because a domain output does not
+     * begin with it. Anyone setting a limit gets a recognisable value; anyone unaware of it
+     * sees it.
+     */
+    static final String ITERATION_LIMIT_MARKER = "[INCOMPLETE: iteration limit reached";
+
     private String fallbackToSummary(List<ChatMessage> messages) {
         SystemMessage summaryPrompt = SystemMessage.from("""
-            The agent has reached its iteration limit. Please summarize all previous tool calls and their results.
-            Compose a final answer based on the provided context.
+            The agent has reached its iteration limit and must stop now.
+            Summarize what has been accomplished so far and state plainly what is NOT done.
+            Do not claim success for unfinished work.
             """);
 
         var builder = dev.langchain4j.model.chat.request.ChatRequest.builder()
                 .messages(summaryPrompt)
-                .messages(messages);
+                .messages(limitContext(messages));
 
         var request = builder.build();
 
@@ -388,11 +558,14 @@ public class AgentRuntime {
             var response = llm.chat(request);
             var aiMessage = response.aiMessage();
             if (aiMessage != null && aiMessage.text() != null) {
-                return "[Incomplete Loop, max iterations reached, summarized response]:\n" + aiMessage.text();
+                return ITERATION_LIMIT_MARKER + " — " + maxIterations + " Runden]:\n"
+                        + aiMessage.text();
             }
-            return "[No summarization possible — max iterations reached (" + maxIterations + ")]";
+            return ITERATION_LIMIT_MARKER + " — " + maxIterations + " Runden, "
+                    + "das Modell lieferte keine Antwort]";
         } catch (Exception e) {
-            return "[Error during summarization: " + e.getMessage() + " — max iterations reached (" + maxIterations + ")]";
+            return ITERATION_LIMIT_MARKER + " — " + maxIterations + " Runden, "
+                    + "die Zusammenfassung schlug fehl: " + e.getMessage() + "]";
         }
     }
 

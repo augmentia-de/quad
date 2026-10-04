@@ -20,6 +20,8 @@ import de.augmentia.quad.core.agent.runtime.ToolExecutor;
 import de.augmentia.quad.core.session.AgentSessionState;
 import de.augmentia.quad.core.session.CurrentSession;
 import de.augmentia.quad.core.session.WorkspaceResolver;
+import de.augmentia.quad.core.session.memory.ConversationManager;
+import de.augmentia.quad.core.session.memory.SummarizingSlidingWindowConversationManager;
 import de.augmentia.quad.core.tool.QuadToolRegistry;
 import de.augmentia.quad.core.tool.ToolMethod;
 import de.augmentia.quad.core.tool.SubAgentTool;
@@ -82,6 +84,110 @@ public abstract class Agent {
     }
 
     // ── Configuration getters/setters ──
+
+    /**
+     * Token budget the transcript is written back into before every model call.
+     *
+     * <p>Acts as the upper bound for the {@link SummarizingSlidingWindowConversationManager}
+     * that {@link #conversationManager()} builds. Together with {@code reactMaxIterations == 0}
+     * this is the condition under which unlimited rounds stay affordable: the transcript does
+     * not grow with the round count.
+     */
+    private static final int DEFAULT_CONTEXT_MAX_TOKENS = 8_000;
+
+    /** How many tokens the transcript may claim per round at most. */
+    private int contextMaxTokens = DEFAULT_CONTEXT_MAX_TOKENS;
+
+    /** How many user blocks at the end remain untouched. */
+    private int contextKeepLastUserMessages = 4;
+
+    /**
+     * {@code null} means: build the default on the first run. Deliberately not pre-populated,
+     * because the default needs a {@code ChatModel} and {@link #llm} is only reliably present
+     * at runtime.
+     */
+    private ConversationManager conversationManager;
+
+    /**
+     * Bounds the transcript that goes to the model per round.
+     *
+     * <p><b>The default is not {@code null}.</b> {@link AgentRuntime#runReActLoop} explicitly
+     * bases the round limit {@code reactMaxIterations == 0} in its javadoc on
+     * {@code limitContext} writing the transcript back every round. That wiring was missing at
+     * all three constructor sites, so {@code limitContext} returned early and {@code 0} meant:
+     * unlimited rounds <em>and</em> unlimited context. The claim in the javadoc held only for
+     * the direct {@code AgentRuntime} constructor path, that is, for the tests.
+     *
+     * <p><b>Why {@link SummarizingSlidingWindowConversationManager} and not the
+     * {@link de.augmentia.quad.core.session.memory.SlidingWindowConversationManager}.</b> The
+     * simple manager cuts bluntly from the back. In a tool loop that means: the cut can land
+     * in the middle of a request-result pair, and the model gets a {@code ToolExecutionResult}
+     * without a matching {@code AiMessage}. It reads that as incomplete and hallucinates the
+     * request to go with it. The summarising manager instead anchors on message boundaries and
+     * falls back to a position boundary that reaches back to the start of an AI answer. It
+     * costs one model call, but only when something really has to be trimmed.
+     *
+     * @param manager the rule, or {@code null} for the default
+     */
+    public void setConversationManager(ConversationManager manager) {
+        this.conversationManager = manager;
+    }
+
+    public ConversationManager getConversationManager() {
+        return conversationManager();
+    }
+
+    /**
+     * Wie viele Nutzerbloecke am Ende unangetastet bleiben. Nur wirksam, wenn kein eigener
+     * {@link ConversationManager} gesetzt ist.
+     */
+    public void setContextKeepLastUserMessages(int keep) {
+        this.contextKeepLastUserMessages = keep;
+        this.conversationManager = null; // neu bauen, sonst gewinnt die alte Regel
+    }
+
+    /**
+     * Upper bound for the transcript that goes to the model per round.
+     *
+     * <p>This is the quantity that determines the cost: for unlimited rounds the calculation
+     * is {@code rounds times tokens per round}, and only this factor is in our hands. A value of
+     * 8.000 laesst einen Agenten gut arbeiten und begrenzt einen, der sonst in einen Zyklus
+     * laeuft, auf ein Drittel des Volumens.
+     *
+     * <p>Takes effect only after {@link #setConversationManager} with {@code null} or before the first run,
+     * because the default is built on the first run.
+     */
+    public void setContextMaxTokens(int maxTokens) {
+        if (maxTokens < 1) {
+            throw new IllegalArgumentException("maxTokens must be >= 1, got: " + maxTokens);
+        }
+        this.contextMaxTokens = maxTokens;
+        this.conversationManager = null; // neu bauen, sonst gewinnt die alte Regel
+    }
+
+    public int getContextMaxTokens() {
+        return contextMaxTokens;
+    }
+
+    /**
+     * The manager that this agent's runs use.
+     *
+     * <p>Deliberately lazy: {@link SummarizingSlidingWindowConversationManager} needs a
+     * {@code ChatModel}, und das ist hier {@link #llm}. Der Agent wird aber nicht zwingend mit
+     * einem Modell gebaut (Tests, {@link #executeBash}-Pfade, Provider-Auswahl), also entsteht
+     * the default only when a run actually happens and {@code llm} is not null.
+     */
+    private ConversationManager conversationManager() {
+        if (conversationManager != null) {
+            return conversationManager;
+        }
+        if (llm == null) {
+            return null; // ohne Modell gibt es nichts zu begrenzen
+        }
+        conversationManager = new SummarizingSlidingWindowConversationManager(
+                llm, contextMaxTokens, contextKeepLastUserMessages);
+        return conversationManager;
+    }
 
     public void setStructuredOutputConfig(StructuredOutputConfig config) {
         this.structuredOutputConfig = config;
@@ -159,8 +265,20 @@ public abstract class Agent {
         return jsonInput;
     }
 
+    /**
+     * The limit of the ReAct rounds.
+     *
+     * <p><b>{@code 0} means unlimited.</b> That is only meaningful because the
+     * context is bounded as it grows rather than cut away: the run acquires a token
+     * budget and summarises the older history every round. Without it, "unlimited" is
+     * not a gain but growing memory and latency cost.
+     *
+     * <p>Negative stays invalid — a negative limit is a configuration error and
+     * not a wish for infinity.
+     */
     public void setReActMaxIterations(int maxIterations) {
-        if (maxIterations <= 0) throw new IllegalArgumentException("maxIterations must be > 0");
+        if (maxIterations < 0) throw new IllegalArgumentException(
+                "maxIterations must be >= 0 (0 = unlimited), got: " + maxIterations);
         this.reactMaxIterations = maxIterations;
     }
 
@@ -328,6 +446,9 @@ public abstract class Agent {
         if (llm == null) return "[LLM not configured]";
         AgentRuntime runtime = new AgentRuntime(llm, toolRegistry, null, reactMaxIterations,
                 hookRegistry, eventPublisher, tracer, toolExecutor, channelManager);
+        // Without this limitContext goes into the void: the manager is otherwise null and
+        // the transcript grows untrimmed until the round limit. See setConversationManager.
+        runtime.withConversationManager(conversationManager());
         runtime.setStructuredOutputConfig(structuredOutputConfig);
         return runtime.run(this, prompt, state);
     }
@@ -349,6 +470,9 @@ public abstract class Agent {
         if (llm == null) return new AgentResult("[LLM not configured]", null, 0);
         AgentRuntime runtime = new AgentRuntime(llm, toolRegistry, null, reactMaxIterations,
                 hookRegistry, eventPublisher, tracer, toolExecutor, channelManager);
+        // Without this limitContext goes into the void: the manager is otherwise null and
+        // the transcript grows untrimmed until the round limit. See setConversationManager.
+        runtime.withConversationManager(conversationManager());
         runtime.setStructuredOutputConfig(structuredOutputConfig);
         return runtime.runStructured(this, prompt, state);
     }
@@ -358,6 +482,9 @@ public abstract class Agent {
         if (llm == null) return new AgentResult("[LLM not configured]", null, 0);
         AgentRuntime runtime = new AgentRuntime(llm, toolRegistry, null, reactMaxIterations,
                 hookRegistry, eventPublisher, tracer, toolExecutor, channelManager);
+        // Without this limitContext goes into the void: the manager is otherwise null and
+        // the transcript grows untrimmed until the round limit. See setConversationManager.
+        runtime.withConversationManager(conversationManager());
         runtime.setStructuredOutputConfig(structuredOutputConfig);
         return runtime.runStructured(this, systemMessage, userMessage, state);
     }

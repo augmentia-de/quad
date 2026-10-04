@@ -64,4 +64,29 @@ public class CwdManager {
     public synchronized List<String> stackCopy() {
         return List.copyOf(cwdStack);
     }
+
+    /**
+     * Restores a secured stack — the counterpart to {@link #stackCopy()}.
+     *
+     * <p>{@code stackCopy()} returns the stack from the front: index 0 is the current
+     * directory, the last element the root. That is why it is rebuilt from the back.
+     *
+     * <p>Empty or blank entries are skipped: a secured state containing an empty path must not
+     * cause a {@link ConcurrentLinkedDeque} error in tool execution.
+     */
+    public synchronized CwdManager restore(List<String> stack) {
+        cwdStack.clear();
+        if (stack != null) {
+            for (int i = stack.size() - 1; i >= 0; i--) {
+                String cwd = stack.get(i);
+                if (cwd != null && !cwd.isBlank()) {
+                    cwdStack.push(cwd);
+                }
+            }
+        }
+        if (cwdStack.isEmpty()) {
+            cwdStack.push(rootCwd != null && !rootCwd.isBlank() ? rootCwd : ".");
+        }
+        return this;
+    }
 }

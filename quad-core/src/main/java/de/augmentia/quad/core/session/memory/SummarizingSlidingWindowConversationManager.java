@@ -100,6 +100,21 @@ public record SummarizingSlidingWindowConversationManager(
         return result;
     }
 
+    /**
+     * Determines which block at the end remains untouched.
+     *
+     * <p><b>Anchoring on user messages, with a fallback to a position boundary.</b> In a chat
+     * transcript a user message is a clean turn boundary: what follows belongs to that turn. In
+     * a tool loop that is different — there are <em>no</em> further user messages after the
+     * task, only AI answers and tool results. Without the fallback the loop would never find a
+     * boundary, {@code cutIndex} would stay at the end and nothing would <em>ever</em> be
+     * compacted. That would be the silent failure mode: the budget set and without effect.
+     *
+     * <p>The fallback keeps the last messages and widens the cut towards the front until it
+     * sits at the start of an AI answer. Otherwise a tool result would remain without its
+     * matching request — the model reads that as incomplete and hallucinates the request to go
+     * with it.
+     */
     private List<Message> selectLastUserMessagesBlock(List<Message> nonSystemMsgs) {
         int userCount = 0;
         int cutIndex = nonSystemMsgs.size();
@@ -112,13 +127,25 @@ public record SummarizingSlidingWindowConversationManager(
                 }
             }
         }
-        if (cutIndex == 0) {
-            return nonSystemMsgs;
+
+        if (userCount >= keepLastUserMessages) {
+            return nonSystemMsgs.subList(cutIndex, nonSystemMsgs.size());
         }
-        if (userCount < keepLastUserMessages) {
-            return nonSystemMsgs;
+
+        // Fallback: no (or too few) user messages — tool loop.
+        int keep = Math.min(nonSystemMsgs.size(), Math.max(keepLastUserMessages * 3, 6));
+        int start = nonSystemMsgs.size() - keep;
+
+        // Reach back towards the front to the start of an AI answer so that no tool result
+        // lies in the block without its request. The way is bounded: in a tool loop EVERY AI
+        // answer is a request with results, a boundary on "assistant without tool call" never
+        // matches and one would run all the way to the start.
+        int limit = Math.max(0, start - 3);
+        while (start > limit && !nonSystemMsgs.get(start).isAssistant()) {
+            start--;
         }
-        return nonSystemMsgs.subList(cutIndex, nonSystemMsgs.size());
+
+        return nonSystemMsgs.subList(start, nonSystemMsgs.size());
     }
 
     private List<Message> maybeAggregateSystem(List<Message> systemMsgs, int totalSize) {

@@ -155,11 +155,11 @@
                         <!--
                             TODO2 A1: ReflectiveToolMethod nutzt param.getName() als Fallback,
                             wenn ein @Tool-Parameter kein @Param traegt. Ohne diese Flag liefert
-                            der Compiler "arg0", "arg1", ... — das LLM sendet dann den echten
-                            Namen, das Binding findet nichts, und der Parameter bleibt null,
-                            OHNE Exception. Alle Builtin-Tools tragen @Param und umgingen das
-                            bislang; jedes neue Tool ohne @Param faellt in das Loch.
-                            Der Parameter-Name ist Teil des JSON-Schemas, also nicht optional.
+                            the compiler "arg0", "arg1", ... — the LLM then sends the real
+                            name, the binding finds nothing, and the parameter stays null,
+                            WITHOUT an exception. All built-in tools carry @Param and bypassed
+                            that so far; every new tool without @Param falls into the hole.
+                            The parameter name is part of the JSON schema, so it is not optional.
                         -->
                         <parameters>true</parameters>
                     </configuration>
@@ -170,14 +170,14 @@
                     <version>${surefire-plugin.version}</version>
                     <configuration>
                         <!--
-                            Diese Tests brauchen ein laufendes Backend (localhost:8086),
-                            ein LLM oder ein Kafka-Broker und gehoeren darum NICHT in
-                            den Default-Build. Ausfuehren mit -Pintegration-tests.
+                            These tests need a running backend (localhost:8086), an LLM or a
+                            Kafka broker and therefore do NOT belong in the default build.
+                            Run with -Pintegration-tests.
 
-                            Achtung: JUnit-Tags matchen exakt. "e2e-llm" ist ein eigenes
-                            Tag und wird von "e2e" nicht miterfasst - es muss hier
-                            ausdruecklich genannt sein, sonst laeuft der Test mit und
-                            scheitert im Default-Build an "Connection refused".
+                            NOTE: JUnit tags match exactly. "e2e-llm" is a tag of its own
+                            and is not covered by "e2e" — it has to be named explicitly
+                            here, otherwise the test runs along and fails in the default
+                            build with "Connection refused".
                         -->
                         <excludedGroups>llm,e2e,e2e-llm</excludedGroups>
                     </configuration>

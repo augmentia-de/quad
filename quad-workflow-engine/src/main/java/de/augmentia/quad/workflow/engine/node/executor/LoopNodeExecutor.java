@@ -52,6 +52,7 @@ public class LoopNodeExecutor implements NodeExecutor {
         String exitCondition = NodeConfig.str(node, "exitCondition", "");
         String exitConditionSource = NodeConfig.str(node, "exitConditionSource", "");
         String aggregate = NodeConfig.str(node, "aggregate", "last");
+        // Deprecated, read and ignored. See the comment further below.
         boolean retainOutput = Boolean.TRUE.equals(NodeConfig.of(node).get("retainOutput"));
 
         List<String> bodyIds = GraphUtils.computeLoopBody(nodeId, node, allNodes, edges);
@@ -116,8 +117,16 @@ public class LoopNodeExecutor implements NodeExecutor {
             + "\n" + aggregateLabel(aggregate) + ":\n" + aggregateOutput(aggregate, iterationData, allIterationData);
         ctx.putOutput(nodeId, summary);
         if (retainOutput) {
-            // Keep the body outputs of the final iteration readable by later nodes.
-            log.infof("Loop %s retains body outputs of iteration %d", nodeId, iterations);
+            // retainOutput is a no-op — and always has been. The outputs of the
+            // LAST iteration are in ctx.outputs() anyway, because clearing happens at
+            // the START of the next iteration (clearOutput, line 87). The history
+            // of all iterations is additionally in ctx.outputHistory() and is reachable
+            // via resolveHistory(source, "iteration:N").
+            //
+            // The flag is not removed but carried as deprecated: existing workflow
+            // definitions should not break. The log now tells the truth.
+            log.debugf("Loop %s: retainOutput is deprecated and has no effect — the final "
+                    + "iteration's outputs (iteration %d) are readable regardless", nodeId, iterations);
         }
         runWriter.updateAndPersist(ctx.run(), nodeId, "completed", "", summary);
         log.infof("Loop %s finished after %d iterations (exitReached=%s, bodySize=%d)",

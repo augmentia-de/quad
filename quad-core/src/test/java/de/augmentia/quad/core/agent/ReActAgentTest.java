@@ -102,7 +102,16 @@ class ReActAgentTest {
     @Test
     void shouldRejectInvalidMaxIterations() {
         TestAgent agent = new TestAgent();
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> agent.setReActMaxIterations(0))
+        // 0 now explicitly means unlimited and is therefore valid. Only what cannot be a
+        // limit is rejected: a negative value.
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> agent.setReActMaxIterations(-1))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void zeroMaxIterationsMeansUnlimited() {
+        TestAgent agent = new TestAgent();
+        org.assertj.core.api.Assertions.assertThatCode(() -> agent.setReActMaxIterations(0))
+                .doesNotThrowAnyException();
     }
 }

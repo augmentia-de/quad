@@ -12,15 +12,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * ThreadLocal-Lebenszyklus von {@link CurrentSession} (TODO2 A4, A7).
  *
- * <p>Kernpunkt: die Klasse ist ein reines {@code ThreadLocal} ohne {@code clear()}. Ein gesetzter
- * Wert bleibt auf jedem wiederverwendeten Thread hängen — bei gepoolten HTTP-Threads und
- * virtual Threads ist das die Grundlage für Session-Bleed-over zwischen zwei Agenten.
+ * <p>Core point: the class is a plain {@code ThreadLocal} without {@code clear()}. A set
+ * value stays attached to every reused thread — with pooled HTTP threads and
+ * virtual threads that is the basis for session bleed-over between two agents.
  */
 class CurrentSessionLifecycleTest {
 
     @AfterEach
     void tearDown() {
-        // Ohne clear() bleibt hier der letzte Wert stehen; das ist genau der Punkt.
+        // Without clear() the last value stays here; that is exactly the point.
         CurrentSession.setCurrent(null);
     }
 
@@ -38,10 +38,10 @@ class CurrentSessionLifecycleTest {
             try {
                 CurrentSession.class.getMethod("clear");
             } catch (NoSuchMethodException e) {
-                throw new AssertionError("CurrentSession.clear() fehlt — TODO2 A4 ist offen", e);
+                throw new AssertionError("CurrentSession.clear() is missing — TODO2 A4 is open", e);
             }
         })
-                .as("TODO2 A4: CurrentSession braucht ein clear() fuer try/finally-Cleanup")
+                .as("TODO2 A4: CurrentSession needs a clear() for try/finally cleanup")
                 .isInstanceOf(AssertionError.class);
     }
 
@@ -60,7 +60,7 @@ class CurrentSessionLifecycleTest {
                 return null;
             }).get(5, TimeUnit.SECONDS);
 
-            // Zweiter "Agent" auf demselben Thread: der ThreadLocal haengt noch.
+            // A second "agent" on the same thread: the ThreadLocal is still attached.
             pool.submit(() -> {
                 CurrentSession.setCurrent(second);
                 seen[0] = CurrentSession.getCurrent();
@@ -76,12 +76,12 @@ class CurrentSessionLifecycleTest {
 
     @Test
     void defect_A4_bindingToNull_leavesTheKeyPresentInTheThreadLocalMap() throws Exception {
-        // Das ist der Zustand, den TaskExecutor:220 in kafka-platform hinterlaesst.
+        // That is the state that TaskExecutor:220 in kafka-platform leaves behind.
         CurrentSession.setCurrent(AgentSessionState.create("x"));
         CurrentSession.setCurrent(null);
 
         assertThat(CurrentSession.getCurrent())
-                .as("setCurrent(null) leert den Wert, entfernt den Key aber nicht")
+                .as("setCurrent(null) empties the value but does not remove the key")
                 .isNull();
     }
 }

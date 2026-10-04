@@ -119,8 +119,8 @@ public class PromptAssembler {
         }
 
         // Structured-output/JSON mode: always a real UserMessage so the task stays out of the
-        // system prompt. The schema is enforced exclusively via `response_format` (responseFormat),
-        // not via a duplicated schema section in the system prompt.
+        // system prompt. The schema is enforced via `responseFormat` and — if the provider
+        // ignores it — via the fallback prompt of the OutputForcer.
         if (jsonInput) {
             // A workflow node may have rendered the template already (AgentNodeExecutor does that
             // from the predecessor outputs). In that case `prompt` is plain text and rendering
@@ -128,13 +128,14 @@ public class PromptAssembler {
             // the prompt really is a JSON document, which is the start-envelope case.
             String rendered = renderUserMessageTemplate(prompt, userMessageTemplate);
             messages.add(dev.langchain4j.data.message.UserMessage.from(rendered));
-        } else if (systemPrompt != null && !systemPrompt.isBlank()) {
-            messages.add(dev.langchain4j.data.message.UserMessage.from(prompt));
         } else {
-            String sysMsgWithPrompt = sysMsgText + "\nPrompt: " + prompt;
-            messages.set(0, contextManager != null && contextManager.hasBlocks()
-                    ? contextManager.renderSystemMessage(sysMsgWithPrompt, null)
-                    : new SystemMessage(sysMsgWithPrompt));
+            // Always a real user turn. Folding the prompt into the system prompt was a
+            // peculiarity without benefit: there is no conversation in which the user never
+            // spoke, and some endpoints reject exactly that — measured on an A2A-capable
+            // OpenAI-compatible endpoint that answers with HTTP 400 and thereby fails every
+            // run. Besides, the prompt carries the task, not the instruction; that is a
+            // difference models distinguish.
+            messages.add(dev.langchain4j.data.message.UserMessage.from(prompt));
         }
 
         return messages;

@@ -69,7 +69,7 @@ class InputBuilderTemplateTest {
         var vars = builder.buildTemplateVars(designer, edges, outputs, "USER-REQUEST-BAU-MIR-X");
 
         assertThat(vars.get("previousOutput"))
-                .as("TODO2 B7 behoben: initialPrompt wird nach der Schleife eingefuegt, deshalb war "
+                .as("TODO2 B7 fixed: initialPrompt is inserted after the loop, therefore it was "
                         + "lastKey immer initialPrompt und previousOutput eine Kopie davon")
                 .isEqualTo("ARCHITEKTEN-PLAN-XYZ");
     }
@@ -90,7 +90,7 @@ class InputBuilderTemplateTest {
         assertThat(vars.get("initialPrompt")).isEqualTo("REQ");
     }
 
-    // ── B6: unauflösbare Placeholders ────────────────────────────────────────
+    // ── B6: unresolvable placeholders ────────────────────────────────────────
 
     @Test
     void renderTemplateReplacesResolvablePlaceholders() {
@@ -109,8 +109,8 @@ class InputBuilderTemplateTest {
                 Map.of("architect.output", "PLAN-A"));
 
         assertThat(rendered)
-                .as("TODO2 B6 behoben: der Renderer protokolliert unaufgeloeste Platzhalter; "
-                        + "strict macht daraus einen Fehler")
+                .as("TODO2 B6 fixed: the renderer logs unresolved placeholders; "
+                        + "strict turns that into an error")
                 .contains("PLAN-A")
                 .contains("{{reviewer.output@previousIteration}}");
     }
@@ -119,7 +119,7 @@ class InputBuilderTemplateTest {
     void renderTemplateStrictThrowsOnUnresolvedPlaceholders() {
         assertThatThrownBy(() -> builder.renderTemplateStrict(
                 "Feedback: {{reviewer.output@previousIteration}}", Map.of()))
-                .as("TODO2 B6: die strikte Variante benennt Platzhalter und verfuegbare Schluessel")
+                .as("TODO2 B6: the strict variant names placeholders and available keys")
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("reviewer.output@previousIteration");
     }
@@ -130,13 +130,13 @@ class InputBuilderTemplateTest {
     void inputMappingResolvesFromTheHistory() {
         var designer = nodeWithMappings("designer", mapping("reviewer", "previousIteration"));
         builder.setHistory(history(Map.of(
-                "reviewer@previousIteration", List.of("KRITISCHE FEHLER: Tool fehlt"))));
+                "reviewer@previousIteration", List.of("CRITICAL ERRORS: tool missing"))));
 
         var in = builder.buildNodeInput(designer, List.of(), Map.of(), null, "REQ", "REQ");
 
         assertThat(in)
-                .as("TODO2 B5 behoben: inputMappings lesen die Output-Historie, nicht nur Kanten")
-                .contains("[reviewer@previousIteration]: KRITISCHE FEHLER: Tool fehlt");
+                .as("TODO2 B5 fixed: inputMappings read the output history, not only edges")
+                .contains("[reviewer@previousIteration]: CRITICAL ERRORS: tool missing");
     }
 
     @Test
@@ -174,7 +174,7 @@ class InputBuilderTemplateTest {
         var in = builder.buildNodeInput(designer, List.of(), Map.of(), null, "REQ", "REQ");
 
         assertThat(in)
-                .as("eine leere Sektion wuerde dem Modell eine leere Quelle suggerieren")
+                .as("an empty section would suggest an empty source to the model")
                 .doesNotContain("[reviewer@previousIteration]");
     }
 
@@ -197,17 +197,17 @@ class InputBuilderTemplateTest {
 
         var designer = nodeWithMappings("designer", m);
         builder.setHistory(history(Map.of(
-                "reviewer@last", List.of("{\"kritischeFehler\":[\"Tool BOOKMARK fehlt\"]}"))));
+                "reviewer@last", List.of("{\"kritischeFehler\":[\"Tool BOOKMARK missing\"]}"))));
 
         var in = builder.buildNodeInput(designer, List.of(), Map.of(), null, "REQ", "REQ");
 
         assertThat(in)
-                .as("TODO2 B5: format=json laeuft ueber den bestehenden JsonPathResolver")
+                .as("TODO2 B5: format=json goes through the existing JsonPathResolver")
                 .contains("(JSON, path=kritischeFehler):")
-                .contains("Tool BOOKMARK fehlt");
+                .contains("Tool BOOKMARK missing");
     }
 
-    // ── Regression: das bestehende Kanten-Mapping bleibt unberührt ───────────
+    // ── Regression: the existing edge mapping stays untouched ───────────────
 
     @Test
     void edgeMappedInputStillWorks() {

@@ -45,7 +45,11 @@ import java.util.Set;
  */
 public class DynamicSubAgentTool implements ToolMethod {
 
-    private static final int SUB_AGENT_MAX_ITERATIONS = 5;
+    /**
+     * Default sub-agent round limit. Unchanged at 5 — the limit used to be a hard constant
+     * and stays the default.
+     */
+    public static final int DEFAULT_SUB_AGENT_MAX_ITERATIONS = 5;
     private static final String SUB_AGENT_SYSTEM_PROMPT = """
             You are a sub-agent. Execute the task assigned to you precisely.
 
@@ -63,6 +67,8 @@ public class DynamicSubAgentTool implements ToolMethod {
     private final QuadToolRegistry fullRegistry;
     private final CapabilityRegistry capabilityRegistry;
     private final int maxDepth;
+    /** 0 = unbegrenzt. Siehe {@code Agent.setReActMaxIterations}. */
+    private int subAgentMaxIterations = DEFAULT_SUB_AGENT_MAX_ITERATIONS;
     private final ToolSpecification spec;
     private HookRegistry hookRegistry;
     private AgentEventPublisher eventPublisher;
@@ -95,6 +101,30 @@ public class DynamicSubAgentTool implements ToolMethod {
 
     public void setEventPublisher(AgentEventPublisher eventPublisher) {
         this.eventPublisher = eventPublisher;
+    }
+
+    /**
+     * Sets the round limit of the subagents.
+     *
+     * <p><b>{@code 0} means unlimited.</b> The subagent inherits the same semantics as
+     * {@code Agent.setReActMaxIterations}. The precondition for unlimited subagents is a bound
+     * on the conversation transcript in the {@code AgentRuntime}, otherwise the context grows
+     * with every round.
+     *
+     * <p>The default remains {@value #DEFAULT_SUB_AGENT_MAX_ITERATIONS}.
+     *
+     * @throws IllegalArgumentException on a negative value — negative is a configuration
+     *         error, not a wish for infinity
+     */
+    public DynamicSubAgentTool withSubAgentMaxIterations(int iterations) {
+        if (iterations < 0) throw new IllegalArgumentException(
+                "subAgentMaxIterations must be >= 0 (0 = unlimited), got: " + iterations);
+        this.subAgentMaxIterations = iterations;
+        return this;
+    }
+
+    public int subAgentMaxIterations() {
+        return subAgentMaxIterations;
     }
 
     public DynamicSubAgentTool(ChatModel chatModel, QuadToolRegistry fullRegistry) {
@@ -256,7 +286,7 @@ public class DynamicSubAgentTool implements ToolMethod {
         };
         subAgent.setLlm(chatModel);
         subAgent.setToolRegistry(agentRegistry);
-        subAgent.setReActMaxIterations(SUB_AGENT_MAX_ITERATIONS);
+        subAgent.setReActMaxIterations(subAgentMaxIterations);
         if (hookRegistry != null) subAgent.setHookRegistry(hookRegistry);
         if (eventPublisher != null) subAgent.setEventPublisher(eventPublisher);
 

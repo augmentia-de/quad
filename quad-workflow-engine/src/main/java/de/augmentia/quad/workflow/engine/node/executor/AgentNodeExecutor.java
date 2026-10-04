@@ -311,7 +311,7 @@ if ("agent".equals(childType) || "messaging-in".equals(childType) || "messaging-
         return null;
     }
 
-    /** Eine LLM-Antwort gilt as fehlgeschlagen, if null, leer oder nur an Platzhalter/Fehler-Notiz. */
+    /** An LLM answer counts as failed if it is null, empty or only placeholders/an error note. */
     static boolean isBlankResponse(String s) {
         if (s == null || s.isBlank()) return true;
         String t = s.trim();

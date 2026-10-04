@@ -17,6 +17,16 @@ import java.util.List;
  * Manages structured output: applies JSON schema to LLM requests,
  * parses responses, and forces valid JSON via retry prompt.
  * Extracted from AgentRuntime.java to separate output format concerns from orchestration.
+ *
+ * <p><b>Why there are two ways.</b> The first way is the schema on the request
+ * ({@code response_format}) — the right one, because the provider enforces compliance and
+ * guarantees the result is JSON. It does not work everywhere though: there are endpoints that
+ * accept the field, acknowledge it with HTTP 200 and then deliver prose. The second way is
+ * therefore the schema in the prompt, and it is taken exactly when the first brought nothing.
+ *
+ * <p>This is not mistrust of the provider but a measurement: an endpoint that ignores
+ * {@code json_schema} delivers no structured result at all without this second way — and
+ * therefore no artefact either.
  */
 public class OutputForcer {
 

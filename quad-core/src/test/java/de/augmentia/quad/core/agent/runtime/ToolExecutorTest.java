@@ -99,7 +99,7 @@ class ToolExecutorTest {
 
         assertEquals(first.text(), second.text());
         assertEquals(1, IdempotentToolBean.CALLS.get(),
-                "@Idempotent an der Tool-Methode muss den Cache aktivieren (TODO2 A6 behoben: "
+                "@Idempotent on the tool method must activate the cache (TODO2 A6 fixed: "
                         + "die Annotation wird jetzt in ToolMeta materialisiert)");
     }
 

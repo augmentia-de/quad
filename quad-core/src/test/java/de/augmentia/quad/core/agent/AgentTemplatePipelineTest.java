@@ -69,7 +69,7 @@ class AgentTemplatePipelineTest {
         agent.initialMessages(prompt2, new AgentSessionState());
 
         assertThat(userMessageOf(agent.captured))
-                .as("TODO2 B1 behoben: PLAN-ABC muss das Modell erreichen")
+                .as("TODO2 B1 fixed: PLAN-ABC must reach the model")
                 .contains("PLAN-ABC");
     }
 
@@ -95,7 +95,7 @@ class AgentTemplatePipelineTest {
         agent.initialMessages("irgendein Prompt", new AgentSessionState());
 
         assertThat(userMessageOf(agent.captured))
-                .as("TODO2 B1 behoben: userMessageTemplate greift auch ohne jsonInput")
+                .as("TODO2 B1 fixed: userMessageTemplate also applies without jsonInput")
                 .isNotNull();
     }
 
@@ -122,7 +122,7 @@ class AgentTemplatePipelineTest {
         withoutTemplate.initialMessages("Step: PLAN-ABC", new AgentSessionState());
 
         assertThat(userMessageOf(withTemplate.captured))
-                .as("TODO2 B1 behoben: das zweite Rendering ist ein No-op")
+                .as("TODO2 B1 fixed: the second rendering is a no-op")
                 .isEqualTo(userMessageOf(withoutTemplate.captured));
     }
 }

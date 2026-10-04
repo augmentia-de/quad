@@ -73,12 +73,19 @@ class AgentIntegrationTest {
         assertThat(result).isEqualTo("ok");
         ArgumentCaptor<ChatRequest> captor = ArgumentCaptor.forClass(ChatRequest.class);
         verify(model).chat(captor.capture());
-        ChatMessage first = captor.getValue().messages().get(0);
-        assertThat(first).isInstanceOf(SystemMessage.class);
-        String content = ((SystemMessage) first).text();
-        assertThat(content).contains("Prompt: Do it");
-        assertThat(content).contains("[task]: Analyse X");
-        assertThat(content).contains("[PROTECTED:rules]: Be concise.");
+        // The context blocks belong in the system prompt, the task in a real user turn.
+        // Mixing both would mean: a conversation in which the user never spoke — some
+        // endpoints reject that.
+        List<ChatMessage> sent = captor.getValue().messages();
+        assertThat(sent.get(0)).isInstanceOf(SystemMessage.class);
+        String system = ((SystemMessage) sent.get(0)).text();
+        assertThat(system).contains("[task]: Analyse X");
+        assertThat(system).contains("[PROTECTED:rules]: Be concise.");
+        assertThat(system).doesNotContain("Prompt: Do it");
+        assertThat(sent.get(sent.size() - 1))
+                .isInstanceOf(dev.langchain4j.data.message.UserMessage.class);
+        assertThat(((dev.langchain4j.data.message.UserMessage) sent.get(sent.size() - 1)).singleText())
+                .isEqualTo("Do it");
     }
 
     @Test

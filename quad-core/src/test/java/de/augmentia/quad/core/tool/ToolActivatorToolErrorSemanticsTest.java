@@ -9,10 +9,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Fehler-Semantik von {@link ToolActivatorTool} (TODO2 A5).
+ * Error semantics of {@link ToolActivatorTool} (TODO2 A5).
  *
- * <p>Der Kern: das Tool verpackt Fehler als {@code ToolResult.success}. Das Modell kann Fehler
- * nicht von Bestätigungen unterscheiden und wiederholt denselben Aufruf. strands macht es richtig
+ * <p>The core: the tool packages errors as {@code ToolResult.success}. The model cannot
+ * distinguish errors from acknowledgements and repeats the same call. strands does it right
  * ({@code tools/ToolActivator.java:77, 82, 89} nutzen {@code ToolResult.error}).
  */
 class ToolActivatorToolErrorSemanticsTest {
@@ -44,7 +44,7 @@ class ToolActivatorToolErrorSemanticsTest {
         var result = t.execute("{}", AgentSessionState.create("s"));
 
         assertThat(result.isError())
-                .as("TODO2 A5 behoben: fehlende Parameter muessen ein Fehler sein, kein Erfolg")
+                .as("TODO2 A5 fixed: missing parameters must be an error, not a success")
                 .isTrue();
     }
     @Test
@@ -53,7 +53,7 @@ class ToolActivatorToolErrorSemanticsTest {
         var result = t.execute("{\"action\":\"add\",\"tool\":\"unknown\"}", AgentSessionState.create("s"));
 
         assertThat(result.isError())
-                .as("TODO2 A5 behoben: unbekanntes Tool muessen ein Fehler sein")
+                .as("TODO2 A5 fixed: an unknown tool must be an error")
                 .isTrue();
     }
     @Test
@@ -62,7 +62,7 @@ class ToolActivatorToolErrorSemanticsTest {
         var result = t.execute("{\"action\":\"sideways\",\"tool\":\"known\"}", AgentSessionState.create("s"));
 
         assertThat(result.isError())
-                .as("TODO2 A5 behoben: unbekannte Aktion muessen ein Fehler sein")
+                .as("TODO2 A5 fixed: an unknown action must be an error")
                 .isTrue();
     }
     @Test
@@ -71,7 +71,7 @@ class ToolActivatorToolErrorSemanticsTest {
         var spec = t.spec();
 
         assertThat(spec.parameters())
-                .as("TODO2 A5 behoben: der Spec deklariert action und tool")
+                .as("TODO2 A5 fixed: the spec declares action and tool")
                 .isNotNull();
     }
 

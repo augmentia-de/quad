@@ -25,14 +25,14 @@ class PromptAssemblerTemplateTest {
         var finalUserMessage = PromptAssembler.renderUserMessageTemplate(prompt2, TEMPLATE);
 
         assertThat(finalUserMessage)
-                .as("TODO2 B1 behoben: ein Nicht-JSON-Prompt ist bereits der fertige Prompt "
+                .as("TODO2 B1 fixed: a non-JSON prompt is already the finished prompt "
                         + "und darf nicht durch das Template ersetzt werden")
                 .isEqualTo(prompt2);
     }
 
     @Test
     void plainTextInputIsPassedThroughUnchanged() {
-        var plainText = "Step: PLAN-ABC\nBewerte: noch offen";
+        var plainText = "Step: PLAN-ABC\nEvaluate: still open";
         assertThat(PromptAssembler.renderUserMessageTemplate(plainText, TEMPLATE)).isEqualTo(plainText);
     }
 
@@ -82,8 +82,8 @@ class PromptAssemblerTemplateTest {
         var rendered = PromptAssembler.renderUserMessageTemplate(json, "Task: {{input}}");
 
         assertThat(rendered)
-                .as("TODO2 B1 behoben: {{input}} wird nach dem Feld-Durchlauf ersetzt, damit ein "
-                        + "JSON-Feld 'input' den Platzhalter nicht verdecken kann")
+                .as("TODO2 B1 fixed: {{input}} is substituted after the field pass, so that an "
+                        + "JSON field 'input' cannot mask the placeholder")
                 .contains("baue mir X");
     }
 
@@ -93,7 +93,7 @@ class PromptAssemblerTemplateTest {
         var rendered = PromptAssembler.renderUserMessageTemplate(json, "Vorher {{input}}");
 
         assertThat(rendered)
-                .as("{{input}} meint das ganze Dokument, auch wenn ein Feld 'input' existiert")
+                .as("{{input}} means the whole document, even when a field 'input' exists")
                 .contains("FELDER")
                 .contains("X");
     }
@@ -104,7 +104,7 @@ class PromptAssemblerTemplateTest {
         var rendered = PromptAssembler.renderUserMessageTemplate(json, TEMPLATE);
 
         assertThat(rendered)
-                .as("ein im JSON nicht vorhandenes Feld bleibt als Platzhalter sichtbar, "
+                .as("a field not present in the JSON remains visible as a placeholder, "
                         + "damit der Lueckenschluss sichtbar ist")
                 .contains("PLAN-ABC")
                 .contains("{{reviewer.output}}");

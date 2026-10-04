@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Bindungs- und Schema-Verhalten von {@link ReflectiveToolMethod}.
  *
- * <p>Diese Tests dokumentieren den IST-Zustand, nicht den Wunschzustand. Sie schlagen bewusst
+ * <p>These tests document the current state, not the desired state. They deliberately fail
  * fehl, wo ein Defekt aus TODO2.md (A1–A4) besteht — damit eine Korrektur sichtbar wird, sobald
  * sie landet. Die Namen der fehlschlagenden Tests beginnen mit {@code defect}, die der
  *Regressionstests mit {@code regression}.
@@ -112,7 +112,7 @@ class ReflectiveToolMethodBindingTest {
         var props = tm.spec().parameters().properties();
 
         assertThat(props)
-                .as("TODO2 A1: -parameters ist in quad-quarkus/pom.xml gesetzt, deshalb muss "
+                .as("TODO2 A1: -parameters is set in quad-quarkus/pom.xml, therefore "
                         + "getName() den echten Namen liefern. Ohne die Flag waere es 'arg0'.")
                 .containsKey("path");
     }
@@ -123,10 +123,10 @@ class ReflectiveToolMethodBindingTest {
         var props = tm.spec().parameters().properties();
 
         if (props.containsKey("arg0")) {
-            // Das ist der Defekt-Zustand: das LLM sendet "path", das Binding sucht "arg0".
+            // That is the defect state: the LLM sends "path", the binding looks for "arg0".
             var result = tm.execute("{\"path\":\"a.txt\"}", null);
             assertThat(result.text())
-                    .as("TODO2 A1: -parameters fehlt, Argument kommt als null an")
+                    .as("TODO2 A1: -parameters is missing, the argument arrives as null")
                     .isEqualTo("content of null");
         } else {
             var result = tm.execute("{\"path\":\"a.txt\"}", null);
@@ -141,7 +141,7 @@ class ReflectiveToolMethodBindingTest {
         var tm = tool(new AllOptionalTool(), "listDirectory", String.class, Boolean.class, Boolean.class, Integer.class);
 
         assertThat(tm.spec().parameters())
-                .as("TODO2 A2 behoben: buildSpec setzt .parameters() immer, required nur wenn nicht leer")
+                .as("TODO2 A2 fixed: buildSpec always sets .parameters(), required only when non-empty")
                 .isNotNull();
         assertThat(tm.spec().parameters().properties().keySet())
                 .containsExactlyInAnyOrder("path", "recursive", "details", "depth");
@@ -155,7 +155,7 @@ class ReflectiveToolMethodBindingTest {
         assertThat(tm.spec().parameters().properties().keySet()).containsExactly("edits");
         assertThat(tm.spec().parameters().required()).containsExactly("edits");
     }
-    @Disabled("TODO2 A12 offen: @Tool ohne Text erzeugt weiterhin eine leere Beschreibung. Der Fix ist eine Startzeit-Validierung, kein Schema-Fix.")
+    @Disabled("TODO2 A12 open: @Tool without text still produces an empty description. The fix is a start-time validation, not a schema fix.")
     void openQuestion_A12_emptyDescription_whenToolAnnotationCarriesNoText() throws Exception {
         var tm = tool(new NoDescriptionTool(), "bare", String.class);
         assertThat(tm.spec().description())
@@ -179,7 +179,7 @@ class ReflectiveToolMethodBindingTest {
         String args = "{\"edits\":[{\"filePath\":\"a.txt\",\"oldString\":\"x\",\"newString\":\"y\"}]}";
 
         assertThat(tm.execute(args, null).text())
-                .as("TODO2 A3 behoben: convertValue liefert eine echte Liste von Records")
+                .as("TODO2 A3 fixed: convertValue yields a real list of records")
                 .isEqualTo("applied 1 edits, first=x");
     }
 
@@ -188,7 +188,7 @@ class ReflectiveToolMethodBindingTest {
         var tm = tool(new MapTool(), "useMap", Map.class);
 
         assertThat(tm.execute("{\"opts\":{\"a\":1}}", null).text())
-                .as("TODO2 A3 behoben: Map-Parameter wird gebunden")
+                .as("TODO2 A3 fixed: a Map parameter is bound")
                 .isEqualTo("keys=[a]");
     }
 
@@ -197,17 +197,17 @@ class ReflectiveToolMethodBindingTest {
         var tm = tool(new EnumTool(), "useEnum", EnumTool.Mode.class);
 
         assertThat(tm.execute("{\"mode\":\"FAST\"}", null).text())
-                .as("TODO2 A3 behoben: Enum-Parameter wird gebunden")
+                .as("TODO2 A3 fixed: an enum parameter is bound")
                 .isEqualTo("mode=FAST");
     }
-    @Disabled("TODO2 A3 teilweise behoben: convertValue serialisiert ein Objekt fuer einen String-Parameter zu dessen JSON-Text. Ob das der gewuenschte Vertrag ist, ist offen.")
+    @Disabled("TODO2 A3 partially fixed: convertValue serialises an object for a string parameter into its JSON text. Whether that is the desired contract is open.")
     void defect_A3_stringParameterWithObjectArgument_yieldsEmptyStringSilently() throws Exception {
         var tm = tool(new StringTool(), "echo", String.class);
 
-        // asText() auf einem ObjectNode liefert "" — kein Fehler, falscher Wert.
+        // asText() on an ObjectNode yields "" — not an error, a wrong value.
         var result = tm.execute("{\"p\":{\"x\":1}}", null);
         assertThat(result.text())
-                .as("TODO2 A3: Objekt-Argument fuer String-Parameter muss als Fehler auffallen")
+                .as("TODO2 A3: an object argument for a string parameter must show up as an error")
                 .isEqualTo("got:[{\"x\":1}]");
     }
 
@@ -216,7 +216,7 @@ class ReflectiveToolMethodBindingTest {
         var tm = tool(new PrimitiveTool(), "echo", int.class);
 
         assertThatThrownBy(() -> tm.execute("{}", null))
-                .as("TODO2 A3 behoben: sprechende Meldung statt NPE aus ValueConversions")
+                .as("TODO2 A3 fixed: a meaningful message instead of an NPE from ValueConversions")
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("'p'")
                 .hasMessageContaining("echo");
