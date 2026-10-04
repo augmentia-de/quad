@@ -213,6 +213,27 @@ public class WorkflowGeneratorService {
      * system prompt plus the full configured tool set. Not registered in
      * {@link SharedState}; created without a template.
      */
+    /**
+     * Token budget for one planner call. Defaults to 32768 so reasoning models fit; override
+     * with {@code -Dquad.workflow.generator.maxOutputTokens=} or the matching env var when a
+     * cheaper model is used.
+     */
+    private static int plannerMaxOutputTokens() {
+        String raw = System.getProperty("quad.workflow.generator.maxOutputTokens");
+        if (raw == null || raw.isBlank()) {
+            raw = System.getenv("QUAD_WORKFLOW_GENERATOR_MAX_OUTPUT_TOKENS");
+        }
+        if (raw != null && !raw.isBlank()) {
+            try {
+                int v = Integer.parseInt(raw.trim());
+                if (v > 0) return v;
+            } catch (NumberFormatException ignored) {
+                log.warnf("plannerMaxOutputTokens: not a number: %s", raw);
+            }
+        }
+        return 32768;
+    }
+
     private Agent orchestratorAgent(int currentRound) {
         ApiDtos.AgentDefinition def = new ApiDtos.AgentDefinition(
             "__generator-orchestrator__",
@@ -224,7 +245,12 @@ public class WorkflowGeneratorService {
             uiConfig.getEnabledTools().toArray(new String[0]),
             new String[0], new String[0], "ua",
                 WORKFLOW_ARCHITECT_SYSTEM, null, false,
-            "{\"temperature\":0.0,\"maxOutputTokens\":8192}"
+                // maxOutputTokens must cover reasoning tokens AND the answer. With reasoning
+                // models the planning reply needs ~8000 completion tokens, of which ~4000 are
+                // reasoning; at 8192 the JSON arrives truncated and parseSteps fails with
+                // "Unexpected end-of-input". Overridable so a cheaper model is not forced to
+                // pay for the headroom.
+                "{\"temperature\":0.0,\"maxOutputTokens\":" + plannerMaxOutputTokens() + "}"
         );
         return agentFactory.buildFromDefinition(def);
     }
@@ -338,7 +364,8 @@ public class WorkflowGeneratorService {
         }
     }
 
-    private void validateSteps(List<GeneratedStep> steps, Map<String, GeneratedStep> byRole) {
+    // package-private for unit tests: pure validation over parsed steps, no LLM involved
+    void validateSteps(List<GeneratedStep> steps, Map<String, GeneratedStep> byRole) {
         for (GeneratedStep s : steps) {
             for (String dep : s.dependsOn()) {
                 if (!byRole.containsKey(dep)) {
@@ -482,7 +509,8 @@ public class WorkflowGeneratorService {
      * Yields only at "real" schema (more than just {@code type}) a value, so that
      * the Engine es via {@code StructuredOutputConfig} as responseFormat erzwingen kann.
      */
-    private String outputSchemaOf(Map<String, Object> data) {
+    // package-private for unit tests: pure JSON-schema extraction
+    String outputSchemaOf(Map<String, Object> data) {
         Object out = data.get("output");
         if (!(out instanceof Map<?, ?>) || ((Map<?, ?>) out).isEmpty()) return null;
         @SuppressWarnings("unchecked")
@@ -540,9 +568,17 @@ public class WorkflowGeneratorService {
             String source = roleToNodeId.get(s.agentRole());
             List<String> targets = outgoingNodeIds(source, edges);
             if (targets.size() < 2) continue;
+            // A downstream merge point exists if any fork target already leads into a node
+            // that aggregates something (>= 2 incoming edges). Checking only how many edges
+            // point *into* the target misses that: after step 1 inserted the merge join, the
+            // branches already point at it, so the fork looked unmerged and a second,
+            // consumer-less join was appended.
             boolean hasMerge = false;
             for (String t : targets) {
-                if (incomingNodeIds(t, edges).size() >= 2) { hasMerge = true; break; }
+                for (String succ : outgoingNodeIds(t, edges)) {
+                    if (incomingNodeIds(succ, edges).size() >= 2) { hasMerge = true; break; }
+                }
+                if (hasMerge) break;
             }
             if (hasMerge) continue;
             boolean allTerminal = targets.stream()
@@ -673,7 +709,8 @@ public class WorkflowGeneratorService {
     }
 
     /** Strips markdown code fences if the planner wrapped the JSON in ```json ... ```. */
-    private String stripFences(String raw) {
+    // package-private for unit tests: this is the LLM output normaliser
+    String stripFences(String raw) {
         if (raw == null) return "";
         String t = raw.trim();
         // remove a leading ```json fence and a trailing ```
@@ -682,6 +719,14 @@ public class WorkflowGeneratorService {
         // DeepSeek/compatible models sometimes ewith a bare 'json' token before the object
         // without enclosing backticks, e.g. "json\n{...}" instead of "```json\n{...}\n```".
         t = t.replaceFirst("(?s)^json\\s*(?=\\{)", "");
+        // Reasoning models like to prepend a sentence ("No problem, here is the JSON:").
+        // Fences and a bare 'json' token are not enough, so cut everything before the first
+        // '{' and after the last '}' when the reply is not already pure JSON.
+        int firstBrace = t.indexOf('{');
+        int lastBrace = t.lastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+            t = t.substring(firstBrace, lastBrace + 1);
+        }
         return t;
     }
 
@@ -713,6 +758,7 @@ public class WorkflowGeneratorService {
     public record ChatDesc(String sessionId, ApiDtos.WorkflowDef workflow, String reply) {}
 
     /** Parsed steps + workflow meta + the last raw (pre-parse) planner reply. */
-    private record WorkbookResult(List<GeneratedStep> steps, String workflowName,
+    // package-private for unit tests: parseSteps is the seam, its result must be readable
+    record WorkbookResult(List<GeneratedStep> steps, String workflowName,
                                   String description, String raw) {}
 }

@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 import static io.restassured.RestAssured.given;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -92,6 +93,48 @@ final class E2eBackendSupport {
                 "Backend not reachable at " + BASE_URL + ". Start the backend (main class / "
                 + "'mvn quarkus:dev') before running this E2E test. " + e.getMessage(), e);
         }
+    }
+
+    /** True if the backend answers its ping endpoint. */
+    static boolean backendIsUp() {
+        try {
+            given().config(TIMEOUT).get("/api/ui/dynamic/ping").then().statusCode(200);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** True if the resolved DB opens and holds the tables the E2E tests assert on. */
+    static boolean databaseIsUsable() {
+        try (Connection c = DriverManager.getConnection(DB_URL)) {
+            java.util.Set<String> tables = new java.util.HashSet<>();
+            try (ResultSet rs = c.getMetaData().getTables(null, null, "%", null)) {
+                while (rs.next()) tables.add(rs.getString("TABLE_NAME").toLowerCase());
+            }
+            for (String t : List.of("agents", "workflows", "workflow_state")) {
+                if (!tables.contains(t)) return false;
+            }
+            return true;
+        } catch (java.sql.SQLException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Skips the calling test unless the backend and its database are both available.
+     *
+     * <p>Use this in a {@code @BeforeAll} of an <em>optional</em> E2E suite so that running
+     * {@code -Pintegration-tests} without infrastructure skips instead of failing the build.
+     * Keep {@link #requireBackendUp()} for suites that genuinely must fail fast.
+     */
+    static void assumeBackendAndDatabase() {
+        assumeTrue(backendIsUp(),
+            () -> "Backend not reachable at " + BASE_URL
+                + " — start it (main class / 'mvn quarkus:dev') or skip this suite");
+        assumeTrue(databaseIsUsable(),
+            () -> "E2E database not usable at " + DB_URL
+                + " — it must be the same database the running backend writes to");
     }
 
     /** Self-check: the resolved DB must contain the tables the tests assert on. */
