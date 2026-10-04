@@ -46,7 +46,7 @@ class SkillLoadToolTest {
     void shouldLoadSkillByName() throws Exception {
         Path skillsDir = Files.createTempDirectory("skills-load");
         createSkill(skillsDir, "code-review", "Code review skill",
-            "## Review-Prozess\n1. Struktur prüfen\n2. Fehler suchen\n3. Sicherheit prüfen",
+            "## Review process\n1. Check structure\n2. Find errors\n3. Check security",
             "allowed-tools:\n  - read_file\n  - grep_search");
 
         var skills = buildSkillMap(skillsDir);
@@ -57,9 +57,9 @@ class SkillLoadToolTest {
 
         assertTrue(result.text().contains("## Skill loaded: code-review"));
         assertTrue(result.text().contains("Code review skill"));
-        assertTrue(result.text().contains("Review-Prozess"));
-        assertTrue(result.text().contains("Struktur prüfen"));
-        assertTrue(result.text().contains("Fehler suchen"));
+        assertTrue(result.text().contains("Review process"));
+        assertTrue(result.text().contains("Check structure"));
+        assertTrue(result.text().contains("Find errors"));
         assertTrue(result.text().contains("read_file"));
     }
 

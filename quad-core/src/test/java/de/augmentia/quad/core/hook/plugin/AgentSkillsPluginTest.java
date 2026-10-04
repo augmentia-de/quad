@@ -43,7 +43,7 @@ class AgentSkillsPluginTest {
     void shouldInjectOnlyCatalogNotFullInstructions() throws Exception {
         Path skillsDir = Files.createTempDirectory("skills-catalog");
         createSkill(skillsDir, "code-review", "Code review skill",
-            "## Review-Prozess\n1. Struktur prüfen\n2. Fehler suchen\n3. Sicherheit prüfen",
+            "## Review process\n1. Check structure\n2. Find errors\n3. Check security",
             "allowed-tools:\n  - read_file\n  - grep_search");
 
         var skills = loadSkills(skillsDir);
@@ -66,8 +66,8 @@ class AgentSkillsPluginTest {
         assertTrue(catalog.contains("Code review skill"));
 
         // Phase 1: Catalog must NOT contain full instructions
-        assertFalse(catalog.contains("Review-Prozess"), "Catalog must not contain full instructions");
-        assertFalse(catalog.contains("Struktur prüfen"), "Catalog must not contain body content");
+        assertFalse(catalog.contains("Review process"), "Catalog must not contain full instructions");
+        assertFalse(catalog.contains("Check structure"), "Catalog must not contain body content");
         assertFalse(catalog.contains("read_file"), "Catalog must not contain allowed tools");
     }
 

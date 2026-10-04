@@ -11,16 +11,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Plugin, das vor jedem LLM-Call einen Skill-Catalog (Name + Description) injiziert.
+ * Plugin that injects a skill catalog (name + description) before every LLM call.
  *
  * <h3>Two-Phase Skill Loading (Just-in-Time)</h3>
- * <p><b>Phase 1 (Startup):</b> Nur das Skill-Catalog wird im System Prompt eingefügt —
- * Name + kurze Beschreibung. Das kostet 20-50 Tokens pro Skill und verhindert
- * Context Bloat.
+ * <p><b>Phase 1 (startup):</b> only the skill catalog is inserted into the system prompt —
+ * name + short description. That costs 20-50 tokens per skill and prevents
+ * context bloat.
  *
- * <p><b>Phase 2 (Runtime):</b> Wenn der Agent einen Skill braucht, ruft er
- * <code>load_skill("skillName")</code> auf. Das Tool lädt die vollständigen
- * Instructions (200+ Zeilen) erst als Tool-Result in den Context.
+ * <p><b>Phase 2 (runtime):</b> if the agent needs a skill, it calls
+ * <code>load_skill("skillName")</code>. The tool loads the full
+ * instructions (200+ lines) into the context only as a tool result.
  *
  * <p>Dies ist analog zu jedem anderen Tool: Name+Description im Schema →
  * Function Call → Result im Context.
@@ -49,9 +49,9 @@ public class AgentSkillsPlugin implements Plugin {
     public void initAgent(Agent agent) { this.agent = agent; }
 
     /**
-     * Phase 1: Injiziert NUR das Skill-Catalog (Name + Description).
-     * Die vollständigen Instructions werden NICHT injiziert — die kommen erst
-     * über load_skill() als Tool-Result in den Context.
+     * Phase 1: injects ONLY the skill catalog (name + description).
+     * The full instructions are NOT injected — they only enter
+     * the context via load_skill() as a tool result.
      */
     @Override
     public HookResult beforeModelCall(HookContexts.BeforeModelCallContext ctx) {
@@ -64,8 +64,8 @@ public class AgentSkillsPlugin implements Plugin {
     }
 
     /**
-     * Phase 1: Skill-Catalog — Name + Description pro Skill.
-     * Keine Instructions, keine allowed-tools, keine Examples.
+     * Phase 1: skill catalog — name + description per skill.
+     * No instructions, no allowed-tools, no examples.
      */
     private String generateSkillCatalog() {
         var buf = new StringBuilder();

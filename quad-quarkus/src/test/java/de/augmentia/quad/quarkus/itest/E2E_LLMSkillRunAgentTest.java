@@ -21,31 +21,31 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * E2E mit echten LLM-Agent-Runs, bei denen der Agent Tasks <em>gegen unterschiedliche Skills</em>
- * ausführt. Es werden <b>drei separate {@code POST /api/ui/execute}-Runs</b> gestartet, jeder mit
- * einem anderen Task, der genau einen der drei zugewiesenen Skills braucht.
+ * E2E with real LLM agent runs in which the agent executes tasks <em>against different skills</em>
+ * . <b>Three separate {@code POST /api/ui/execute} runs</b> are started, each with
+ * a different task that needs exactly one of the three assigned skills.
  *
- * <p>Ablauf:
+ * <p>Flow:
  * <ol>
- *   <li>Agent via {@code POST /api/ui/agents} anlegen (ID wird serverseitig generiert)</li>
- *   <li>Die drei Skills per {@code POST /api/skills/{name}/assign} dem Agenten zuweisen</li>
- *   <li>Drei echte Agent-Runs ({@code load_skill} JIT) — je ein anderer Task pro Skill</li>
- *   <li>Aufräumen: Skills abmelden + Agent löschen</li>
+ *   <li>Create the agent via {@code POST /api/ui/agents} (the ID is generated server-side)</li>
+ *   <li>Assign the three skills to the agent via {@code POST /api/skills/{name}/assign}</li>
+ *   <li>Three real agent runs ({@code load_skill} JIT) — one different task per skill</li>
+ *   <li>Clean up: unassign the skills + delete the agent</li>
  * </ol>
  *
- * <p>Pro Run wird verifiziert, dass:
+ * <p>Per run it is verified that:
  * <ul>
- *   <li>der Run erfolgreich ist ({@code success == true})</li>
- *   <li>eine Session-ID geliefert wird</li>
- *   <li>das Ergebnis ({@code result}) nicht leer ist</li>
- *   <li>mindestens ein Tool-Aufruf stattfand ({@code toolCount > 0}) — d.h. der Agent hat das
- *       {@code load_skill}-Tool tatsächlich benutzt und nicht nur aus dem reinen Katalog-Prompt
- *       geantwortet (JIT-Skill-Loading)</li>
+ *   <li>the run is successful ({@code success == true})</li>
+ *   <li>a session ID is delivered</li>
+ *   <li>the result ({@code result}) is not empty</li>
+ *   <li>at least one tool call took place ({@code toolCount > 0}) — i.e. the agent actually used the
+ *       {@code load_skill} tool and did not merely answer from the pure catalog prompt
+ *       (JIT skill loading)</li>
  * </ul>
  *
- * <p><b>Läuft nur</b> wenn {@code QUAD_RUN_LLM_E2E=true} <em>und</em> das Backend mit echtem
- * LLM-API-Key läuft (OPENAI_API_KEY / OPENROUTER_API_KEY). Sonst wird der Test übersprungen
- * (Standard-CI bleibt grün).
+ * <p><b>Runs only</b> if {@code QUAD_RUN_LLM_E2E=true} <em>and</em> the backend runs with a real
+ * LLM API key (OPENAI_API_KEY / OPENROUTER_API_KEY). Otherwise the test is skipped
+ * (the standard CI stays green).
  */
 @EnabledIfEnvironmentVariable(named = "QUAD_RUN_LLM_E2E", matches = "true")
 @Tag("e2e-llm")
@@ -100,9 +100,9 @@ class E2E_LLMSkillRunAgentTest {
     @Order(2)
     void runSkillCodeReview() {
         Map<String, Object> run = runAgent(
-            "Führe ein Code-Review der folgenden Java-Methode durch. Identifiziere Bugs, "
-                + "Sicherheits- und Stilprobleme und gib pro Kategorie ein Verdict ab. "
-                + "Schreibe keine Dateien.\n"
+            "Perform a code review of the following Java method. Identify bugs, "
+                + "security and style problems and give a verdict per category. "
+                + "Do not write any files.\n"
                 + "public int div(int a, int b) {\n  return a / b;\n}");
         assertRun(run, "code-review");
     }
@@ -111,9 +111,9 @@ class E2E_LLMSkillRunAgentTest {
     @Order(3)
     void runSkillDataAnalysis() {
         Map<String, Object> run = runAgent(
-            "Analysiere die folgenden Quartals-Umsatzzahlen und erstelle eine Zusammenfassung: "
-                + "Welcher Trend ist erkennbar, welches Quartal ist am stärksten, und gibt es eine "
-                + "Anomalie? Schreibe keine Dateien.\n"
+            "Analyze the following quarterly revenue figures and create a summary: "
+                + "Which trend is recognisable, which quarter is the strongest, and is there an "
+                + "anomaly? Do not write any files.\n"
                 + "Q1=120k, Q2=150k, Q3=90k, Q4=210k");
         assertRun(run, "data-analysis");
     }
@@ -122,10 +122,10 @@ class E2E_LLMSkillRunAgentTest {
     @Order(4)
     void runSkillDocumentation() {
         Map<String, Object> run = runAgent(
-            "Erstelle nutzerorientierte Dokumentation (Kurzfassung: Zweck, Aufruf, Felder, "
-                + "Beispiel-Request und -Response) für den REST-Endpunkt POST /api/orders, der "
-                + "{customerId, items[], total} entgegennimmt und 201 mit orderId zurückgibt. "
-                + "Schreibe keine Dateien.");
+            "Create user-oriented documentation (short version: purpose, invocation, fields, "
+                + "example request and response) for the REST endpoint POST /api/orders, which "
+                + "accepts {customerId, items[], total} and returns 201 with an orderId. "
+                + "Do not write any files.");
         assertRun(run, "documentation");
     }
 

@@ -293,11 +293,11 @@ public class AgentBuilder<T extends Agent> {
         var skillMap = new HashMap<String, Skill>();
         for (var s : allSkills) skillMap.put(s.name(), s);
 
-        // 1. AgentSkillsPlugin — Phase 1: injiziert NUR das Skill-Catalog (Name + Description)
+        // 1. AgentSkillsPlugin — phase 1: injects ONLY the skill catalog (name + description)
         var skillsPlugin = new AgentSkillsPlugin(allSkills, initialSkills, skillSearchEnabled);
         agent.addHook(skillsPlugin);
 
-        // 2. load_skill Tool — Phase 2: Just-in-Time Loading der vollständigen Instructions
+        // 2. load_skill tool — phase 2: just-in-time loading of the full instructions
         var loadSkillTool = new SkillLoadTool(skillMap);
         toolRegistry.register(loadSkillTool.spec().name(), loadSkillTool);
 

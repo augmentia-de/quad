@@ -11,17 +11,17 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Just-in-Time Skill-Loading: Lädt die vollständige Skill-Anleitung erst,
- * wenn der Agent den Skill tatsächlich braucht.
+ * Just-in-time skill loading: loads the full skill guide only
+ * when the agent actually needs the skill.
  *
  * <p>Analogy to every other tool:
  * <pre>
- *   Phase 1 (Startup):  Skill-Catalog (Name + Description) im System Prompt
- *   Phase 2 (Runtime):   load_skill("name") → Tool-Call → vollständige Instructions als Tool-Result
+ *   Phase 1 (startup):  skill catalog (name + description) in the system prompt
+ *   Phase 2 (runtime):   load_skill("name") → tool call → full instructions as tool result
  * </pre>
  *
- * <p>Dies verhindert Context Bloat: Die 200+ Zeilen Anleitung einer SKILL.md
- * sind nur im Context, wenn der Agent sie explizit anfordert.
+ * <p>This prevents context bloat: the 200+ lines of instructions of a SKILL.md
+ * are only in the context when the agent explicitly requests them.
  */
 public class SkillLoadTool implements ToolMethod {
 
@@ -79,7 +79,7 @@ public class SkillLoadTool implements ToolMethod {
                     + (available.length() > 0 ? " Available: " + available : ""));
         }
 
-        // Vollständige Instructions als Tool-Result in den Context injizieren
+        // inject the full instructions into the context as a tool result
         var sb = new StringBuilder();
         sb.append("## Skill loaded: ").append(skill.name()).append("\n\n");
         if (skill.description() != null && !skill.description().isBlank()) {

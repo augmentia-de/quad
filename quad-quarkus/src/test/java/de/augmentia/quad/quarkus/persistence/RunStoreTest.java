@@ -60,7 +60,7 @@ class RunStoreTest {
 
     @Test
     void defaults_apply_when_kind_or_stepIndex_null() {
-        // Simuliert Bestands-Run ohne V17-Spaltenwerte (Rollback-Absicherung MAO2 §3.1).
+        // Simulates an existing run without V17 column values (rollback safeguard MAO2 §3.1).
         db.upsertRun(new WorkflowRunState("run-test-2", "wf-2", "2025-01-01T00:00:00"));
 
         RunStore.PersistedRun loaded = db.loadRunFromDb("run-test-2");

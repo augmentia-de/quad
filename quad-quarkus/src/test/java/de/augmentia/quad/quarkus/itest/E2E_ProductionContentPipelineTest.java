@@ -18,10 +18,10 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * E2E-Test: Produktionsnaher Content-Pipeline-Workflow gegen einen LAUFENDEN Backend.
+ * E2E test: a production-like content pipeline workflow against a RUNNING backend.
  *
  * <p>Dieser Test validiert einen komplexen, mehrstufigen Workflow, der alle wichtigen
- * Features des QUAD-Workflow-Engines in einem realistischen Szenario kombiniert:</p>
+ * combines features of the QUAD workflow engine in a realistic scenario:</p>
  *
  * <h2>Workflow-Architektur</h2>
  * <pre>

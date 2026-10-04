@@ -66,7 +66,7 @@ class SkillJitE2eTest {
     void shouldLoadSkillViaToolCallAndInjectInstructions() throws Exception {
         Path skillsDir = Files.createTempDirectory("skills-jit-e2e");
         createSkill(skillsDir, "code-review", "Code review skill",
-            "## Review-Prozess\n1. Struktur pruefen\n2. Fehler suchen\n3. Sicherheit pruefen",
+            "## Review process\n1. Check structure\n2. Find errors\n3. Check security",
             "allowed-tools:\n  - read_file\n  - grep_search");
 
         var skills = loadSkills(skillsDir);
@@ -101,7 +101,7 @@ class SkillJitE2eTest {
 
         boolean foundSkillInstructions = secondCallMessages.stream()
             .anyMatch(m -> m instanceof ToolExecutionResultMessage trem
-                && trem.text().contains("Review-Prozess"));
+                && trem.text().contains("Review process"));
         assertThat(foundSkillInstructions)
             .as("Skill instructions must be injected via load_skill tool result")
             .isTrue();
@@ -111,7 +111,7 @@ class SkillJitE2eTest {
     void shouldNotInjectFullInstructionsAtStartup() throws Exception {
         Path skillsDir = Files.createTempDirectory("skills-jit-startup");
         createSkill(skillsDir, "code-review", "Code review skill",
-            "## Review-Prozess\n1. Struktur pruefen\n2. Fehler suchen\n3. Sicherheit pruefen",
+            "## Review process\n1. Check structure\n2. Find errors\n3. Check security",
             "allowed-tools:\n  - read_file\n  - grep_search");
 
         var skills = loadSkills(skillsDir);
@@ -141,9 +141,9 @@ class SkillJitE2eTest {
 
         // Without AgentSkillsPlugin registered, no skill catalog is injected.
         // The full instructions must never appear in the system prompt.
-        assertThat(systemPrompt).doesNotContain("Review-Prozess");
-        assertThat(systemPrompt).doesNotContain("Struktur pruefen");
-        assertThat(systemPrompt).doesNotContain("Sicherheit pruefen");
+        assertThat(systemPrompt).doesNotContain("Review process");
+        assertThat(systemPrompt).doesNotContain("Check structure");
+        assertThat(systemPrompt).doesNotContain("Check security");
     }
 
     private static class DirectToolExecutor extends de.augmentia.quad.core.agent.runtime.ToolExecutor {

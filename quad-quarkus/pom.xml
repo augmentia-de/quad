@@ -49,8 +49,8 @@
             <artifactId>quad-workflow-engine</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- Quarkus-/Arc-Adapter: CDI-Produzenten fuer den Modell-Stack, Jandex-Index
-             und Native-Image-Hints fuer die reflektive Tool-Invocation. -->
+        <!-- Quarkus/Arc adapter: CDI producers for the model stack, Jandex index
+        and native image hints for the reflective tool invocation. -->
         <dependency>
             <groupId>de.augmentia.quad</groupId>
             <artifactId>quad-quarkus-core</artifactId>
@@ -111,7 +111,7 @@
             <artifactId>quarkus-jdbc-postgresql</artifactId>
         </dependency>
         <!-- Quarkiverse SQLite-Extension: registriert db-kind=sqlite + JBDC-Treiber
-             (Treiber org.xerial:sqlite-jdbc wird transitiv mitgeliefert) -->
+        (driver org.xerial:sqlite-jdbc is delivered transitively) -->
         <dependency>
             <groupId>io.quarkiverse.jdbc</groupId>
             <artifactId>quarkus-jdbc-sqlite</artifactId>

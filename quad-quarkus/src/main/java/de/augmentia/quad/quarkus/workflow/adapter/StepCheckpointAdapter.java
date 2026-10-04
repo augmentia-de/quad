@@ -11,9 +11,9 @@ import java.util.Optional;
  * Bindet die Engine an {@link StepSnapshotStore}.
  *
  * <p>Der Store liefert {@code StepSnapshotStore.Snapshot}; der Port liefert
- * {@link StepCheckpointPort.Checkpoint}. Die Uebersetzung ist bewusst hier und
- * nicht im Store: die Engine soll den Store-Typ nicht kennen, und der Store
- * soll nicht wissen, wer ihn benutzt.
+ * {@link StepCheckpointPort.Checkpoint}. The translation is deliberately here and
+ * not in the store: the engine should not know the store type, and the store
+ * should not know who uses it.
  */
 @ApplicationScoped
 public class StepCheckpointAdapter implements StepCheckpointPort {

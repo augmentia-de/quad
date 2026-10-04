@@ -19,8 +19,8 @@ public class SkillListRenderer {
 
     /**
      * Phase 1: Skill-Catalog — Name + Description pro Skill.
-     * Keine Instructions, keine allowed-tools, keine Examples.
-     * Das verhindert Context Bloat: 200+ Zeilen Anleitung kommen nur auf Anfrage.
+     * No instructions, no allowed-tools, no examples.
+     * That prevents context bloat: 200+ lines of instructions only come on request.
      */
     public String renderCatalog(String base, SkillRegistry registry) {
         if (registry == null || registry.listDiscovered().isEmpty()) {
@@ -72,13 +72,13 @@ public class SkillListRenderer {
 
     private String renderParameters(Object parameters) {
         if (parameters == null) {
-            return "Keine";
+            return "None";
         }
         if (parameters instanceof dev.langchain4j.model.chat.request.json.JsonObjectSchema schema) {
             return schema.properties().entrySet().stream()
                 .map(e -> e.getKey() + ": " + e.getValue().description())
                 .reduce((a, b) -> a + ", " + b)
-                .orElse("Keine");
+                .orElse("None");
         }
         return parameters.toString();
     }

@@ -38,7 +38,7 @@ public final class NodeConfig {
         return fallback;
     }
 
-    /** JSON-Arbeitsmodus: true at jsonOutput (neu) oder jsonInput (Legacy from bestehen UIs). */
+    /** JSON working mode: true at jsonOutput (new) or jsonInput (legacy from existing UIs). */
     public static boolean isJsonOutputMode(Map<String, Object> config) {
         if (config.get("jsonOutput") instanceof Boolean jo && jo) return true;
         return config.get("jsonInput") instanceof Boolean ji && ji;

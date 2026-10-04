@@ -81,7 +81,7 @@ public class AgentController {
 //        try {
 //            hitlService.checkpointService().createCheckpoint("ui-default", "executeBash", "rm -rf /");
 //        } catch (Exception e) {
-//            log.warnf("Demo-HITL-Checkpoint konnte not erstellt werden: %s", e.getMessage());
+//            log.warnf("Demo HITL checkpoint could not be created: %s", e.getMessage());
 //        }
         log.infof("AgentController initialized. Model: %s, DummyMode: %s", config.getModel(), config.isDummyMode());
     }
