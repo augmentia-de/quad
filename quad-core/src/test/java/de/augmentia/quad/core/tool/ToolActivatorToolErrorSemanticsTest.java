@@ -75,7 +75,7 @@ class ToolActivatorToolErrorSemanticsTest {
                 .isNotNull();
     }
 
-    // ── Erfolgsfaelle: die duerfen nicht brechen ─────────────────────────────
+    // ── Success cases: these must not break ─────────────────────────────
 
     @Test
     void regression_addAndRemoveAreSuccessfulAndIdempotent() throws Exception {
@@ -87,10 +87,10 @@ class ToolActivatorToolErrorSemanticsTest {
 
         var added = t.execute("{\"action\":\"add\",\"tool\":\"beta\"}", state);
         assertThat(added.isError()).isFalse();
-        assertThat(reg.get("beta")).as("add registriert das Tool").isNotNull();
+        assertThat(reg.get("beta")).as("add registers the tool").isNotNull();
 
         var removed = t.execute("{\"action\":\"remove\",\"tool\":\"beta\"}", state);
         assertThat(removed.isError()).isFalse();
-        assertThat(reg.get("beta")).as("remove entfernt das Tool").isNull();
+        assertThat(reg.get("beta")).as("remove removes the tool").isNull();
     }
 }

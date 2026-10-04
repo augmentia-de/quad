@@ -14,12 +14,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Bindungs- und Schema-Verhalten von {@link ReflectiveToolMethod}.
+ * Binding and schema behaviour of {@link ReflectiveToolMethod}.
  *
  * <p>These tests document the current state, not the desired state. They deliberately fail
- * fehl, wo ein Defekt aus TODO2.md (A1–A4) besteht — damit eine Korrektur sichtbar wird, sobald
- * sie landet. Die Namen der fehlschlagenden Tests beginnen mit {@code defect}, die der
- *Regressionstests mit {@code regression}.
+ * where a defect from TODO2.md (A1–A4) exists — so that a correction becomes visible as soon as
+ * it lands. The names of the failing tests start with {@code defect}, those of the
+ * regression tests with {@code regression}.
  */
 class ReflectiveToolMethodBindingTest {
 
@@ -33,7 +33,7 @@ class ReflectiveToolMethodBindingTest {
 
     // ── Fixtures ────────────────────────────────────────────────────────────
 
-    /** Parameter ohne {@code @Param} — deckt den {@link Param} -Fallback auf {@code getName()} ab. */
+    /** Parameter without {@code @Param} — covers the {@link Param} fallback to {@code getName()}. */
     public static class NoParamTool {
         @Tool("no @Param anywhere")
         public String greet(String path) {
@@ -105,7 +105,7 @@ class ReflectiveToolMethodBindingTest {
         }
     }
 
-    // ── A1: Parameternamen ohne @Param ──────────────────────────────────────
+    // ── A1: parameter names without @Param ──────────────────────────────────────
     @Test
     void parameterNameFallback_resolvesViaGetName() throws Exception {
         var tm = tool(new NoParamTool(), "greet", String.class);
@@ -113,7 +113,7 @@ class ReflectiveToolMethodBindingTest {
 
         assertThat(props)
                 .as("TODO2 A1: -parameters is set in quad-quarkus/pom.xml, therefore "
-                        + "getName() den echten Namen liefern. Ohne die Flag waere es 'arg0'.")
+                        + "getName() must return the real name. Without the flag it would be 'arg0'.")
                 .containsKey("path");
     }
 
@@ -159,7 +159,7 @@ class ReflectiveToolMethodBindingTest {
     void openQuestion_A12_emptyDescription_whenToolAnnotationCarriesNoText() throws Exception {
         var tm = tool(new NoDescriptionTool(), "bare", String.class);
         assertThat(tm.spec().description())
-                .as("TODO2 A12: @Tool ohne Text erzeugt eine namenlose Tool-Spezifikation")
+                .as("TODO2 A12: a @Tool without text produces a nameless tool specification")
                 .isNotBlank();
     }
 
@@ -222,7 +222,7 @@ class ReflectiveToolMethodBindingTest {
                 .hasMessageContaining("echo");
     }
 
-    // ── A7: state aus dem Aufruf statt aus dem ThreadLocal ─────────────────
+    // ── A7: state from the call instead of from the ThreadLocal ─────────────────
 
     @Test
     void regression_agentSessionState_isInjected() throws Exception {
@@ -242,7 +242,7 @@ class ReflectiveToolMethodBindingTest {
         try {
             var result = tm.execute("{\"p\":\"v\"}", argumentState);
             assertThat(result.text())
-                    .as("TODO2 A7: der state aus execute() muss gewinnen, nicht der ThreadLocal")
+                    .as("TODO2 A7: the state from execute() must win, not the ThreadLocal")
                     .isEqualTo("session=from-argument p=v");
         } finally {
             de.augmentia.quad.core.session.CurrentSession.setCurrent(null);

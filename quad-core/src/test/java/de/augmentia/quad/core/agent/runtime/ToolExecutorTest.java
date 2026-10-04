@@ -100,7 +100,7 @@ class ToolExecutorTest {
         assertEquals(first.text(), second.text());
         assertEquals(1, IdempotentToolBean.CALLS.get(),
                 "@Idempotent on the tool method must activate the cache (TODO2 A6 fixed: "
-                        + "die Annotation wird jetzt in ToolMeta materialisiert)");
+                        + "the annotation is now materialised in ToolMeta)");
     }
 
     @Test
@@ -139,7 +139,7 @@ class ToolExecutorTest {
         executor.execute(tm, "{\"key\":\"k2\"}", state);
 
         assertEquals(2, PlainToolBean.CALLS.get(),
-                "ohne @Idempotent wird jedes Mal ausgefuehrt");
+                "without @Idempotent it is executed every time");
     }
 
     @Test

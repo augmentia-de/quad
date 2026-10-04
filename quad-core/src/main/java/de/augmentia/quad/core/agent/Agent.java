@@ -138,12 +138,12 @@ public abstract class Agent {
     }
 
     /**
-     * Wie viele Nutzerbloecke am Ende unangetastet bleiben. Nur wirksam, wenn kein eigener
-     * {@link ConversationManager} gesetzt ist.
+     * How many user blocks remain untouched at the end. Only effective if no own
+     * {@link ConversationManager} is set.
      */
     public void setContextKeepLastUserMessages(int keep) {
         this.contextKeepLastUserMessages = keep;
-        this.conversationManager = null; // neu bauen, sonst gewinnt die alte Regel
+        this.conversationManager = null; // rebuild, otherwise the old rule wins
     }
 
     /**
@@ -151,8 +151,8 @@ public abstract class Agent {
      *
      * <p>This is the quantity that determines the cost: for unlimited rounds the calculation
      * is {@code rounds times tokens per round}, and only this factor is in our hands. A value of
-     * 8.000 laesst einen Agenten gut arbeiten und begrenzt einen, der sonst in einen Zyklus
-     * laeuft, auf ein Drittel des Volumens.
+     * 8,000 lets an agent work well and limits one that would otherwise run into a cycle
+     * to a third of the volume.
      *
      * <p>Takes effect only after {@link #setConversationManager} with {@code null} or before the first run,
      * because the default is built on the first run.
@@ -162,7 +162,7 @@ public abstract class Agent {
             throw new IllegalArgumentException("maxTokens must be >= 1, got: " + maxTokens);
         }
         this.contextMaxTokens = maxTokens;
-        this.conversationManager = null; // neu bauen, sonst gewinnt die alte Regel
+        this.conversationManager = null; // rebuild, otherwise the old rule wins
     }
 
     public int getContextMaxTokens() {
@@ -173,8 +173,8 @@ public abstract class Agent {
      * The manager that this agent's runs use.
      *
      * <p>Deliberately lazy: {@link SummarizingSlidingWindowConversationManager} needs a
-     * {@code ChatModel}, und das ist hier {@link #llm}. Der Agent wird aber nicht zwingend mit
-     * einem Modell gebaut (Tests, {@link #executeBash}-Pfade, Provider-Auswahl), also entsteht
+     * {@code ChatModel}, and that is {@link #llm} here. The agent is not necessarily built with
+     * a model (tests, {@link #executeBash} paths, provider selection), so it is created
      * the default only when a run actually happens and {@code llm} is not null.
      */
     private ConversationManager conversationManager() {
@@ -182,7 +182,7 @@ public abstract class Agent {
             return conversationManager;
         }
         if (llm == null) {
-            return null; // ohne Modell gibt es nichts zu begrenzen
+            return null; // without a model there is nothing to limit
         }
         conversationManager = new SummarizingSlidingWindowConversationManager(
                 llm, contextMaxTokens, contextKeepLastUserMessages);

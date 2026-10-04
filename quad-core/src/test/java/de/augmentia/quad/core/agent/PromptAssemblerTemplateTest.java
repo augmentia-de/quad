@@ -26,7 +26,7 @@ class PromptAssemblerTemplateTest {
 
         assertThat(finalUserMessage)
                 .as("TODO2 B1 fixed: a non-JSON prompt is already the finished prompt "
-                        + "und darf nicht durch das Template ersetzt werden")
+                        + "and must not be replaced by the template")
                 .isEqualTo(prompt2);
     }
 
@@ -59,7 +59,7 @@ class PromptAssemblerTemplateTest {
         var rendered = PromptAssembler.renderUserMessageTemplate(json, TEMPLATE);
 
         assertThat(rendered)
-                .as("ein Array traegt keine Feldnamen, also wird nichts substituiert")
+                .as("an array carries no field names, so nothing is substituted")
                 .isEqualTo(json);
     }
 
@@ -89,12 +89,12 @@ class PromptAssemblerTemplateTest {
 
     @Test
     void explicitInputFieldDoesNotShadowTheInputPlaceholder() {
-        var json = "{\"input\":\"FELDER\",\"task\":\"X\"}";
+        var json = "{\"input\":\"FIELDS\",\"task\":\"X\"}";
         var rendered = PromptAssembler.renderUserMessageTemplate(json, "Vorher {{input}}");
 
         assertThat(rendered)
                 .as("{{input}} means the whole document, even when a field 'input' exists")
-                .contains("FELDER")
+                .contains("FIELDS")
                 .contains("X");
     }
 
@@ -105,7 +105,7 @@ class PromptAssemblerTemplateTest {
 
         assertThat(rendered)
                 .as("a field not present in the JSON remains visible as a placeholder, "
-                        + "damit der Lueckenschluss sichtbar ist")
+                        + "so that the gap is visible")
                 .contains("PLAN-ABC")
                 .contains("{{reviewer.output}}");
     }

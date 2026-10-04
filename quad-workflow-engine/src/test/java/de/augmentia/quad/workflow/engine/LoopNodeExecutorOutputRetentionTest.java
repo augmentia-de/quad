@@ -17,7 +17,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Was nach einer Loop-Schleife noch erreichbar ist — und was {@code retainOutput} tut.
+ * What is still reachable after a loop iteration — and what {@code retainOutput} does.
  *
  * <p>The finding that led to this test: {@code retainOutput} was read and
  * logged but triggered nothing. The log claimed "retains body outputs of iteration
@@ -69,7 +69,7 @@ class LoopNodeExecutorOutputRetentionTest {
         return new RunStateWriter(new NoopRunPort(), new NoopCheckpoints());
     }
 
-    /** Jeder Body-Knoten liefert seinen Namen plus die Iterationsnummer. */
+    /** Every body node returns its name plus the iteration number. */
     private static NodeRunner countingBody(Map<String, Integer> runs) {
         return (node, all, edges, c, skip) -> {
             String id = String.valueOf(node.get("id"));
@@ -114,26 +114,26 @@ class LoopNodeExecutorOutputRetentionTest {
         assertThat(runs.getOrDefault("worker", 0)).isEqualTo(3);
 
         assertThat(c.outputs().get("worker"))
-                .as("der aktuelle Wert ist der der LETZTEN Iteration — ohne retainOutput")
+                .as("the current value is the one of the LAST iteration — without retainOutput")
                 .isEqualTo("worker-runde-3");
 
         assertThat(c.resolveHistory("worker", "iteration:3"))
-                .as("und die Historie kann sie gezielt anfordern")
+                .as("and the history can request them selectively")
                 .containsExactly("worker-runde-3");
     }
 
     @Test
     void retainOutput_aendert_nichts_am_ergebnis() {
-        var ohne = ctx();
+        var without = ctx();
         var with = ctx();
         new LoopNodeExecutor(writer()).execute(
-                loopNode(false), nodes(false), edges(), ohne, countingBody(new LinkedHashMap<>()));
+                loopNode(false), nodes(false), edges(), without, countingBody(new LinkedHashMap<>()));
         new LoopNodeExecutor(writer()).execute(
                 loopNode(true), nodes(true), edges(), with, countingBody(new LinkedHashMap<>()));
 
         assertThat(with.outputs().get("worker"))
-                .as("retainOutput war und ist ein No-op — es darf nichts hinzufuegen")
-                .isEqualTo(ohne.outputs().get("worker"));
+                .as("retainOutput was and is a no-op — it must not add anything")
+                .isEqualTo(without.outputs().get("worker"));
     }
 
     @Test
@@ -143,10 +143,10 @@ class LoopNodeExecutorOutputRetentionTest {
                 loopNode(true), nodes(true), edges(), c, countingBody(new LinkedHashMap<>()));
 
         assertThat(c.resolveHistory("worker", "last"))
-                .as("'last' ist der aktuelle Wert")
+                .as("'last' is the current value")
                 .containsExactly("worker-runde-3");
         assertThat(c.resolveHistory("worker", "all"))
-                .as("die Historie behaelt alle drei — das ist resolveHistory, nicht retainOutput")
+                .as("the history keeps all three — that is resolveHistory, not retainOutput")
                 .containsExactly("worker-runde-1", "worker-runde-2", "worker-runde-3");
     }
 }

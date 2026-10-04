@@ -33,7 +33,7 @@ class CurrentSessionLifecycleTest {
 
     @Test
     void defect_A4_noClearMethod_exists() {
-        // TODO2 A4: CurrentSession hat bind()/setCurrent(), aber kein clear().
+        // TODO2 A4: CurrentSession has bind()/setCurrent(), but no clear().
         assertThatThrownBy(() -> {
             try {
                 CurrentSession.class.getMethod("clear");

@@ -69,8 +69,8 @@ class InputBuilderTemplateTest {
         var vars = builder.buildTemplateVars(designer, edges, outputs, "USER-REQUEST-BAU-MIR-X");
 
         assertThat(vars.get("previousOutput"))
-                .as("TODO2 B7 fixed: initialPrompt is inserted after the loop, therefore it was "
-                        + "lastKey immer initialPrompt und previousOutput eine Kopie davon")
+                .as("TODO2 B7 fixed: initialPrompt is inserted after the loop, therefore "
+                        + "lastKey was always initialPrompt and previousOutput a copy of it")
                 .isEqualTo("ARCHITEKTEN-PLAN-XYZ");
     }
 
@@ -162,7 +162,7 @@ class InputBuilderTemplateTest {
         var vars = builder.buildTemplateVars(designer, List.of(), Map.of(), "REQ");
 
         assertThat(vars.get("reviewer.output@previousIteration"))
-                .as("TODO2 B5: Mappings sind auch als Template-Variable erreichbar")
+                .as("TODO2 B5: mappings are also reachable as a template variable")
                 .isEqualTo("feedback-text");
     }
 

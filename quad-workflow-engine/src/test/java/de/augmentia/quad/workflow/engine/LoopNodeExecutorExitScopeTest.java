@@ -133,7 +133,7 @@ class LoopNodeExecutorExitScopeTest {
 
         assertThat(runs.getOrDefault("designer", 0))
                 .as("TODO2 B2 fixed: with exitConditionSource=reviewer the 'OK' in the "
-                        + "Designer-Output den Loop nicht beenden")
+                        + "designer output must not end the loop")
                 .isEqualTo(3);
     }
 
@@ -166,7 +166,7 @@ class LoopNodeExecutorExitScopeTest {
                 fixedOutputs(outputs, runs));
 
         assertThat(runs.getOrDefault("designer", 0))
-                .as("ohne exitConditionSource gilt weiter der Gesamtoutput")
+                .as("without exitConditionSource the combined output still applies")
                 .isEqualTo(1);
     }
 
@@ -301,7 +301,7 @@ class LoopNodeExecutorExitScopeTest {
         var combined = GraphUtils.combineOutputs(List.of("designer", "reviewer"), outputs);
 
         assertThat(combined)
-                .as("Das Praefix ist der Grund, warum equals:OK auf den Gesamtoutput nie greift")
+                .as("The prefix is the reason why equals:OK never matches the combined output")
                 .contains("[designer]: D")
                 .contains("[reviewer]: OK");
     }

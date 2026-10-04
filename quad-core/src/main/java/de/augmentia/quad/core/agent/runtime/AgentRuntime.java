@@ -380,7 +380,7 @@ public class AgentRuntime {
                 .messages(requestMessages);
 
         // =========================================================================
-        // ENTSCHEIDUNG: Single-Pass vs. ReAct Phase 1
+        // DECISION: single-pass vs. ReAct phase 1
         // =========================================================================
         boolean isSinglePassJson = specs.isEmpty() && outputForcer != null;
 
@@ -391,7 +391,7 @@ public class AgentRuntime {
             if (!specs.isEmpty()) {
                 merged.toolSpecifications(specs);
             } else if (isSinglePassJson) {
-                // Sofortige JSON-Formatierung im 1. Call (Keine Tools vorhanden)
+                // immediate JSON formatting in the 1st call (no tools present)
                 outputForcer.applyToParams(merged);
             }
             builder.parameters(merged.build());
@@ -399,7 +399,7 @@ public class AgentRuntime {
             if (!specs.isEmpty()) {
                 builder.toolSpecifications(specs);
             } else if (isSinglePassJson) {
-                // Sofortige JSON-Formatierung im 1. Call (Keine Tools vorhanden)
+                // immediate JSON formatting in the 1st call (no tools present)
                 outputForcer.applyToRequest(builder);
             }
         }
@@ -558,14 +558,14 @@ public class AgentRuntime {
             var response = llm.chat(request);
             var aiMessage = response.aiMessage();
             if (aiMessage != null && aiMessage.text() != null) {
-                return ITERATION_LIMIT_MARKER + " — " + maxIterations + " Runden]:\n"
+                return ITERATION_LIMIT_MARKER + " — " + maxIterations + " rounds]:\n"
                         + aiMessage.text();
             }
-            return ITERATION_LIMIT_MARKER + " — " + maxIterations + " Runden, "
-                    + "das Modell lieferte keine Antwort]";
+            return ITERATION_LIMIT_MARKER + " — " + maxIterations + " rounds, "
+                    + "the model delivered no answer]";
         } catch (Exception e) {
-            return ITERATION_LIMIT_MARKER + " — " + maxIterations + " Runden, "
-                    + "die Zusammenfassung schlug fehl: " + e.getMessage() + "]";
+            return ITERATION_LIMIT_MARKER + " — " + maxIterations + " rounds, "
+                    + "the summarization failed: " + e.getMessage() + "]";
         }
     }
 

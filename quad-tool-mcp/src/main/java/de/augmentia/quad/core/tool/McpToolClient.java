@@ -128,9 +128,9 @@ public class McpToolClient {
     }
 
     /**
-     * Zerlegt eine Befehlszeile in argv-Elemente.
+     * Splits a command line into argv elements.
      *
-     * <p><b>Die vier Backslashes waren ein echter Bug.</b>
+     * <p><b>The four backslashes were a real bug.</b>
      * {@code "\\\\s+"} is the string {@code \\s+} in Java; as a regex that means
      * <em>a literal backslash followed by one or more {@code s}</em> — not whitespace.
      * Demonstrated:
@@ -339,7 +339,7 @@ public class McpToolClient {
                 String url = serverNode.has("url")
                         ? substitute(serverNode.get("url").asText()) : null;
 
-                // args ist Pflicht fuer stdio. Ohne sie startet "npx" ohne Argumente.
+                // args is mandatory for stdio. Without them "npx" starts without arguments.
                 List<String> args = new ArrayList<>();
                 var argsNode = serverNode.get("args");
                 if (argsNode != null && argsNode.isArray()) {

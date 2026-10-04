@@ -11,9 +11,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Registry-Vertrag von {@link QuadToolRegistry} (TODO2 A10, A11).
+ * Registry contract of {@link QuadToolRegistry} (TODO2 A10, A11).
  *
- * <p>Dokumentiert den Vertrag zwischen Registry und Aufrufern: unbekannte Namen, Kollisionen und
+ * <p>Documents the contract between registry and callers: unknown names, collisions and
  * the question of whether the state is thread-safe. {@link ToolActivatorTool} is tested separately because
  * it packages errors as success.
  */
@@ -52,7 +52,7 @@ class QuadToolRegistryContractTest {
     void getReturnsNullForUnknownName_butFindReturnsEmpty() {
         var reg = new QuadToolRegistry(mapper());
         assertThat(reg.get("gibt-es-nicht"))
-                .as("get() bleibt fuer Bestandscode null-liefernd")
+                .as("get() remains null-returning for existing code")
                 .isNull();
         assertThat(reg.find("gibt-es-nicht"))
                 .as("TODO2 A10 fixed: find(String) explicitly separates 'missing' from 'null'")
@@ -110,7 +110,7 @@ class QuadToolRegistryContractTest {
                 .isInstanceOf(QuadToolRegistry.DuplicateToolNameException.class)
                 .hasMessageContaining("dup");
         assertThat(reg.get("dup").execute("{}", null).text())
-                .as("das erste registrierte Tool bleibt gewinnen")
+                .as("the first registered tool keeps winning")
                 .isEqualTo("first");
     }
 
@@ -147,7 +147,7 @@ class QuadToolRegistryContractTest {
         assertThat(reg.getByNames(List.of("alpha", "unknown"))).hasSize(1);
     }
 
-    // ── A11: notifyToolSetChanged ist ein No-op ──────────────────────────────
+    // ── A11: notifyToolSetChanged is a no-op ──────────────────────────────
 
     @Test
     void defect_A11_notifyToolSetChangedDoesNothing() {
@@ -157,10 +157,10 @@ class QuadToolRegistryContractTest {
 
         reg.notifyToolSetChanged(added, removed);
 
-        // TODO2 A11: die Methode muesste ein ToolSetChangedEvent feuern. Sie tut nichts.
+        // TODO2 A11: the method should fire a ToolSetChangedEvent. It does nothing.
         // After the fix an observation should be possible here — today there is none.
         assertThat(reg.get("alpha"))
-                .as("notifyToolSetChanged feuert kein Event; der Aufrufer kann nicht reagieren")
+                .as("notifyToolSetChanged fires no event; the caller cannot react")
                 .isNull();
     }
 
@@ -168,10 +168,10 @@ class QuadToolRegistryContractTest {
 
     @Test
     void defect_A10_linkedHashMapWithoutSynchronization() {
-        // TODO2 A10: beide nutzen LinkedHashMap ohne Synchronisation und erlauben
-        // register/remove waehrend eines laufenden Agenten. Der Test dokumentiert, dass
-        // ein ganzzahlig benannter Bestand konsistent bleibt — die Race-Condition
-        // selbst ist nicht deterministisch testbar.
+        // TODO2 A10: both use a LinkedHashMap without synchronization and allow
+        // register/remove during a running agent. The test documents that
+        // an integrally named inventory stays consistent — the race condition
+        // itself is not deterministically testable.
         var reg = new QuadToolRegistry(mapper());
         for (int i = 0; i < 50; i++) {
             reg.register("t" + i, stub("t" + i, "v" + i));

@@ -98,18 +98,18 @@
     </dependencyManagement>
 
     <!--
-        Kein globales <dependencies>-Block mehr.
+        No global <dependencies> block any more.
 
-        Vorher standen hier jakarta.inject, jakarta.enterprise.cdi-api,
-        jakarta.ws.rs-api, jackson-databind und langchain4j als normale
-        (compile-)Abhaengigkeiten fuer JEDES Modul. Damit war die
-        Framework-Neutralitaet der einzelnen Module nicht durchsetzbar: der
-        Enforcer-Ban auf io.quarkus griff zwar, aber jedes Modul bekam CDI und
-        JAX-RS zwangsweise auferlegt - auch quad-contract und
-        quad-workflow-engine, die genau davon frei sein sollen.
+        Previously jakarta.inject, jakarta.enterprise.cdi-api,
+        jakarta.ws.rs-api, jackson-databind and langchain4j stood here as normal
+        (compile) dependencies for EVERY module. That made the
+        framework neutrality of the individual modules unenforceable: the
+        Enforcer ban on io.quarkus did take effect, but every module got CDI and
+        JAX-RS forcibly imposed — also quad-contract and
+        quad-workflow-engine, which are supposed to be free of exactly that.
 
-        Die Abhaengigkeiten sind jetzt pro Modul deklariert, wo sie gebraucht
-        werden. dependencyManagement (BOMs + eigene Versionen) bleibt unberuehrt.
+        The dependencies are now declared per module, where they are needed.
+        dependencyManagement (BOMs + own versions) remains untouched.
     -->
 
     <modules>
@@ -153,9 +153,9 @@
                     <configuration>
                         <release>21</release>
                         <!--
-                            TODO2 A1: ReflectiveToolMethod nutzt param.getName() als Fallback,
-                            wenn ein @Tool-Parameter kein @Param traegt. Ohne diese Flag liefert
-                            the compiler "arg0", "arg1", ... — the LLM then sends the real
+                            TODO2 A1: ReflectiveToolMethod uses param.getName() as a fallback
+                            when a @Tool parameter carries no @Param. Without this flag the
+                            compiler delivers "arg0", "arg1", ... — the LLM then sends the real
                             name, the binding finds nothing, and the parameter stays null,
                             WITHOUT an exception. All built-in tools carry @Param and bypassed
                             that so far; every new tool without @Param falls into the hole.
@@ -188,9 +188,8 @@
                     <version>0.8.12</version>
                 </plugin>
                 <!--
-                    Grenzwaechter zwischen framework-neutralem Kern und
-                    Quarkus-Adapter. Wird von den Modulen mit eigener Regel
-                    konfiguriert.
+                    Boundary guard between the framework-neutral core and the
+                    Quarkus adapter. Configured by the modules with their own rule.
                 -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

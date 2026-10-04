@@ -53,7 +53,7 @@ class AgentTemplatePipelineTest {
 
     private static CapturingAgent agentWithTemplate(boolean jsonInput) {
         var agent = new CapturingAgent();
-        agent.setSystemPrompt("Du bist ein Testagent.");
+        agent.setSystemPrompt("You are a test agent.");
         agent.setUserMessageTemplate(TEMPLATE);
         if (jsonInput) agent.setJsonInput(true);
         return agent;
@@ -81,7 +81,7 @@ class AgentTemplatePipelineTest {
         agent.initialMessages(prompt2, new AgentSessionState());
 
         assertThat(userMessageOf(agent.captured))
-                .as("der zweite Durchgang darf nichts mehr aendern")
+                .as("the second pass must not change anything any more")
                 .isEqualTo(prompt2);
     }
 
@@ -90,7 +90,7 @@ class AgentTemplatePipelineTest {
         // The template path used to require jsonOutput/jsonInput, which made it invisible for
         // text-in/text-out agents.
         var agent = agentWithTemplate(false);
-        agent.setUserMessageTemplate("Nur dieser Satz.");
+        agent.setUserMessageTemplate("Only this sentence.");
 
         agent.initialMessages("irgendein Prompt", new AgentSessionState());
 
@@ -102,7 +102,7 @@ class AgentTemplatePipelineTest {
     @Test
     void withoutTemplateThePromptPassesThrough() {
         var agent = new CapturingAgent();
-        agent.setSystemPrompt("Du bist ein Testagent.");
+        agent.setSystemPrompt("You are a test agent.");
 
         agent.initialMessages("NACKTER PROMPT", new AgentSessionState());
 
@@ -117,7 +117,7 @@ class AgentTemplatePipelineTest {
         withTemplate.initialMessages("Step: PLAN-ABC", new AgentSessionState());
 
         var withoutTemplate = new CapturingAgent();
-        withoutTemplate.setSystemPrompt("Du bist ein Testagent.");
+        withoutTemplate.setSystemPrompt("You are a test agent.");
         withoutTemplate.setJsonInput(true);
         withoutTemplate.initialMessages("Step: PLAN-ABC", new AgentSessionState());
 

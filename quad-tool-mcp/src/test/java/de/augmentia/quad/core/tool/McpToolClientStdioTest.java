@@ -55,7 +55,7 @@ class McpToolClientStdioTest {
                 () -> McpToolClient.buildArgv(null, null));
     }
 
-    // --- Defekt 2: args wurden verworfen ---
+    // --- Defect 2: args were discarded ---
 
     @Test
     void parseConfigFile_liest_das_args_array() throws IOException {
@@ -74,7 +74,7 @@ class McpToolClientStdioTest {
         var cfg = McpToolClient.parseConfigFile(config.toString()).get(0);
 
         assertEquals("npx", cfg.command());
-        assertEquals(3, cfg.args().size(), "args sind der Grund, warum der Server ueberhaupt startet");
+        assertEquals(3, cfg.args().size(), "args are the reason the server starts at all");
         assertEquals(List.of("npx", "-y", "@modelcontextprotocol/server-filesystem", "/workspace/shared"),
                 cfg.argv());
     }
@@ -103,7 +103,7 @@ class McpToolClientStdioTest {
         assertEquals(4, configs.size());
         for (var cfg : configs) {
             assertFalse(cfg.args().isEmpty(),
-                    cfg.name() + " startet ohne args — der Server bekommt nichts zu tun");
+                    cfg.name() + " starts without args — the server has nothing to do");
             assertTrue(cfg.argv().size() >= 2, cfg.name() + ": argv zu kurz " + cfg.argv());
         }
     }
@@ -119,7 +119,6 @@ class McpToolClientStdioTest {
 
         // The split also makes legacy configs work — the args list is only the
         // unambiguous form, not a requirement.
-        // die eindeutige Form, kein Muss.
         assertEquals(4, cfg.argv().size(), cfg.argv().toString());
     }
 
@@ -153,10 +152,10 @@ class McpToolClientStdioTest {
             """);
 
         assertEquals(2, McpToolClient.parseConfigFile(config.toString()).size(),
-                "fehlende Allowlist darf kein Bruch sein");
+                "a missing allowlist must not be a crash");
     }
 
-    // --- Defekt 4: ${QUAD_MCP_ROOT} blieb ein literaler String ---
+    // --- Defect 4: ${QUAD_MCP_ROOT} remained a literal string ---
 
     @Test
     void parseConfigFile_ersetzt_platzhalter() throws IOException {
@@ -177,7 +176,7 @@ class McpToolClientStdioTest {
             var cfg = McpToolClient.parseConfigFile(config.toString()).get(0);
 
             assertTrue(cfg.argv().contains("/var/quad/shared"),
-                    "ein unaufgeloester Platzhalter geht als Verzeichnisname durch: " + cfg.argv());
+                    "an unresolved placeholder passes through as a directory name: " + cfg.argv());
             assertEquals("/var/quad/memory.json", cfg.env().get("MEMORY_FILE_PATH"));
         } finally {
             System.clearProperty("QUAD_MCP_ROOT_TEST");
@@ -189,7 +188,7 @@ class McpToolClientStdioTest {
         System.setProperty("QUAD_PROBE", "/srv");
         try {
             assertEquals("/srv/data", McpToolClient.substitute("${QUAD_PROBE}/data"));
-            assertEquals("kein Platzhalter", McpToolClient.substitute("kein Platzhalter"));
+            assertEquals("no placeholder", McpToolClient.substitute("no placeholder"));
             assertEquals("vor /srv nach",
                     McpToolClient.substitute("vor ${QUAD_PROBE} nach"));
             assertNull(McpToolClient.substitute(null));
@@ -203,6 +202,6 @@ class McpToolClientStdioTest {
         var r = McpToolClient.substitute("${QUAD_MCP_ROOT_GIBT_ES_NICHT}/shared");
 
         assertEquals("QUAD_MCP_ROOT_GIBT_ES_NICHT/shared", r,
-                "ohne Warnung und ohne Ersatz waere der Wert ein scheinbar gueltiger Pfad");
+                "without a warning and without a replacement the value would be a seemingly valid path");
     }
 }
