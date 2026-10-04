@@ -97,7 +97,7 @@ class WorkflowExecutionContextSnapshotTest {
 
         assertEquals("old", ctx.output("n1"));
         assertTrue(ctx.outputHistory("n1").isEmpty(),
-                "ein v2-Snapshot traegt keine Historie; das Verhalten entspricht einem Erstlauf");
+                "a v2 snapshot carries no history; the behaviour corresponds to a first run");
     }
 
     @Test
@@ -189,7 +189,7 @@ class WorkflowExecutionContextSnapshotTest {
 
     @Test
     void legacySnapshotWithoutLoopIterationsIsBackwardCompatible() {
-        // Alter Snapshot (Stufe 07, ohne version/loopIterations) darf weiterhin Outputs liefern.
+        // An old snapshot (stage 07, without version/loopIterations) may still deliver outputs.
         WorkflowExecutionContext ctx = newCtx();
         ctx.restoreSnapshot("{\"outputs\":{\"n1\":\"old\"},\"statuses\":{\"n1\":\"completed\"}}");
         assertEquals("old", ctx.output("n1"));
