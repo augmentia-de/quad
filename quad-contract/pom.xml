@@ -13,16 +13,16 @@
     <artifactId>quad-contract</artifactId>
     <name>QUAD - REST Contract DTOs</name>
     <description>
-        Framework-neutrale DTOs des REST-Vertrags. Ausgelagert aus quad-quarkus,
-        weil sowohl die Workflow-Engine als auch die App diese Typen brauchen -
-        ein App-internes Paket (quarkus.contract) waere eine falsche Abhaengigkeit.
+        Framework-neutral DTOs of the REST contract. Extracted from quad-quarkus
+        because both the workflow engine and the app need these types -
+        an app-internal package (quarkus.contract) would be a wrong dependency.
     </description>
 
     <dependencies>
         <!--
-            Bewusst KEINE Jackson-Dependency: die DTOs sind reine Datenhalter mit
-            Gettern/Settern. Serialisierung macht der Client (Quarkus RESTEasy /
-            Spring Jackson), nicht dieses Modul.
+            Deliberately NO Jackson dependency: the DTOs are pure data holders with
+            getters/setters. Serialisation is done by the client (Quarkus RESTEasy /
+            Spring Jackson), not by this module.
         -->
 
         <!-- Test -->
@@ -57,9 +57,9 @@
             </plugin>
 
             <!--
-                Grenzwaechter: ein Vertrag, der von der Engine UND der App benutzt
-                wird, darf keinen Framework-Import enthalten. Sonst schleicht sich
-                genau die Kopplung wieder ein, die dieses Modul aufloesen soll.
+                Boundary guard: a contract that is used by the engine AND the app
+                must not contain a framework import. Otherwise
+                exactly recreates the coupling this module is supposed to resolve.
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -81,9 +81,9 @@
                                         <exclude>jakarta.enterprise:*</exclude>
                                     </excludes>
                                     <message>
-                                        quad-contract ist der framework-neutrale REST-Vertrag.
-                                        Framework-Hinweise gehoeren in die App bzw. in die
-                                        Native-Hints von quad-quarkus-core.
+                                        quad-contract is the framework-neutral REST contract.
+                                        Framework references belong in the app or in the
+                                        native hints of quad-quarkus-core.
                                     </message>
                                 </bannedDependencies>
                             </rules>

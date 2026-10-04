@@ -7,12 +7,12 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 /**
- * Bindet die Engine an den In-Memory-Bestand der Workflow-Definitionen.
+ * Binds the engine to the in-memory inventory of the workflow definitions.
  *
- * <p>{@code WorkflowEngine} und {@code InputBuilder} griffen vorher direkt auf
- * {@code SharedState.workflows()} zu. {@code SharedState} sammelt aber sehr
- * viel mehr (Agents, UI-Status, Metriken) - die Engine brauchte davon nur die
- * Definitionen. Der Port macht genau diesen Ausschnitt sichtbar.
+ * <p>{@code WorkflowEngine} and {@code InputBuilder} previously accessed
+ * {@code SharedState.workflows()} directly. But {@code SharedState} collects
+ * much more (agents, UI status, metrics) — the engine needed only the
+ * definitions. The port makes exactly this excerpt visible.
  */
 @ApplicationScoped
 public class WorkflowDefinitionAdapter implements WorkflowDefinitionPort {

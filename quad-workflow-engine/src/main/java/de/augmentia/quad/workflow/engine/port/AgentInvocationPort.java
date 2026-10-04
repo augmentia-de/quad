@@ -6,43 +6,43 @@ import java.util.Map;
 import de.augmentia.quad.workflow.engine.port.AgentInvocationPort;
 
 /**
- * Port fuer den Aufruf eines Quad-Agenten aus einem Agent-Knoten heraus.
+ * Port for invoking a quad agent from an agent node.
  *
- * <p>{@code AgentNodeExecutor} war an zwei Quarkus-Beans gebunden:
- * {@code ChannelAgentFactory} (baut den Agent) und {@code MessagingRouter}
- * (versendet die Nachricht). Damit konnte die Engine keinen Agent-Knoten
- * ausfuehren - und der Spring-Boot-Worker schon gar nicht, obwohl er genau das
- * als LLM-Worker tun soll.
+ * <p>{@code AgentNodeExecutor} was bound to two Quarkus beans:
+ * {@code ChannelAgentFactory} (builds the agent) and {@code MessagingRouter}
+ * (sends the message). That way the engine could not
+ * be executed — and the Spring Boot worker could not at all, although it is
+ * supposed to do exactly that as an LLM worker.
  *
  * <p>Implementierung: {@code AgentInvocationAdapter} in quad-quarkus.
  */
 public interface AgentInvocationPort {
 
     /**
-     * Baut den Agenten fuer einen Agent-Knoten. Die Konfiguration des Knotens
-     * (systemPrompt, userMessageTemplate, jsonOutput, cachePrefix) wird danach
-     * vom Executor direkt am {@link Agent} gesetzt - das bleibt bewusst hier,
-     * weil es reine {@code quad-core}-Logik ist und keinen Container braucht.
+     * Builds the agent for an agent node. The configuration of the node
+     * (systemPrompt, userMessageTemplate, jsonOutput, cachePrefix) is then
+     * set by the executor directly on the {@link Agent} — that deliberately stays here,
+     * because it is pure {@code quad-core} logic and needs no container.
      *
-     * @param agentId Agent-ID aus dem Workflow-Definition
-     * @return fertig gebauter, noch nicht ausgefuehrter Agent
+     * @param agentId agent ID from the workflow definition
+     * @return the fully built agent, not yet executed
      */
     Agent create(String agentId);
 
     /**
-     * Per-Agent-Timeout in Millisekunden, 0 wenn der Agent keinen eigenen
-     * Timeout setzt. Teil der Timeout-Kette in {@code resolveTimeoutMs}:
-     * knoten.timeoutMs → Agent-Timeout → globaler Default.
+     * Per-agent timeout in milliseconds, 0 if the agent sets no
+     * timeout of its own. Part of the timeout chain in {@code resolveTimeoutMs}:
+     * node.timeoutMs → agent timeout → global default.
      */
     long timeoutMsOrZero(String agentId);
 
     /**
-     * Versendet eine Nachricht an einen bestimmten Outbound-Channel, ohne einen
-     * Agent zu starten. Wird von {@code AgentNodeExecutor} nach dem Lauf
-     * benutzt, um das Ergebnis nach aussen zu melden.
+     * Sends a message to a given outbound channel without starting
+     * an agent. Used by {@code AgentNodeExecutor} after the run
+     * to report the result outwards.
      *
-     * @param channelName Zielchannel
-     * @param message     Nachricht; der Adapter serialisiert
+     * @param channelName target channel
+     * @param message     message; the adapter serialises
      */
     void sendToOutbound(String channelName, String message);
 }

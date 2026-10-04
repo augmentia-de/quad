@@ -4,42 +4,42 @@ import de.augmentia.quad.core.workflow.run.WorkflowRunState;
 import java.util.List;
 
 /**
- * Persistenz-Port fuer die Workflow-Ausfuehrung.
+ * Persistence port for the workflow execution.
  *
- * <p>Die Engine kennt bewusst weder Quarkus noch Panache noch JDBC. Vorher
- * sprach {@code WorkflowEngine} direkt mit {@code RunStore} - dadurch war die
- * Engine nur innerhalb der Quarkus-App testbar und fuer den Spring-Boot-Worker
- * unbrauchbar. Diese Schnittstelle ist der Schnitt.
+ * <p>The engine deliberately knows neither Quarkus nor Panache nor JDBC. Previously
+ * {@code WorkflowEngine} talked to {@code RunStore} directly — that made the
+ * engine testable only within the Quarkus app and unusable for the Spring Boot worker.
+ * This interface is the seam.
  *
- * <p>Implementierung: {@code RunStoreAdapter} in quad-quarkus.
+ * <p>Implementation: {@code RunStoreAdapter} in quad-quarkus.
  *
- * <h3>Warum RunState nicht im Interface steckt</h3>
- * <p>{@code RunState} war eine innere Klasse von {@code RunStore} und wird von
- * der Engine als Arbeitsspeicher mutiert. Ein Interface kann keine innere Klasse
- * zurueckgeben, ohne dass der Aufrufer sie nie sehen darf. Die Engine braucht
- * den Zustand aber. Deshalb ist {@link WorkflowRunState} ein eigenes
- * framework-neutrales Modell; der Adapter mappt RunState darauf.
+ * <h3>Why RunState is not part of the interface</h3>
+ * <p>{@code RunState} used to be an inner class of {@code RunStore} and is
+ * mutated by the engine as working memory. An interface cannot return an inner class
+ * without the caller ever being allowed to see it. But the engine needs
+ * the state. That is why {@link WorkflowRunState} is a separate
+ * framework-neutral model; the adapter maps RunState onto it.
  */
 public interface WorkflowRunPort {
 
     /**
-     * Legt einen neuen Lauf an und gibt seinen Zustand zurueck.
+     * Creates a new run and returns its state.
      *
-     * @param workflowId  ID des gestarteten Workflows
-     * @param nodes       Knoten-IDs in Ausfuehrungsreihenfolge
-     * @param initialData initialer Kontext, serialisiert
+     * @param workflowId  ID of the started workflow
+     * @param nodes       node IDs in execution order
+     * @param initialData initial context, serialised
      */
     WorkflowRunState create(String workflowId, List<String> nodes, String initialData);
 
     /**
-     * Laedt einen bestehenden Lauf. Liefert {@code null}, wenn unbekannt -
-     * das ist ein regulaerer Fall (abgelaufener Run, fremde runId), kein Fehler.
+     * Loads an existing run. Returns {@code null} if unknown —
+     * that is a regular case (expired run, foreign runId), not an error.
      */
     WorkflowRunState load(String runId);
 
     /**
-     * Schreibt den Zustand zurueck. Wird nach jedem abgeschlossenen Schritt
-     * gerufen, damit ein Neustart den Lauf an der richtigen Stelle fortsetzt.
+     * Writes the state back. Called after every completed step
+     * so that a restart continues the run at the right point.
      */
     void save(WorkflowRunState state);
 }

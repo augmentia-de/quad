@@ -3,27 +3,27 @@ package de.augmentia.quad.workflow.engine.port;
 import de.augmentia.quad.contract.ApiDtos;
 
 /**
- * Port fuer den Nachschlag von Workflow-Definitionen zur Laufzeit.
+ * Port for looking up workflow definitions at runtime.
  *
- * <p>{@code NestedWorkflowNodeExecutor} las die verschachtelten Definitionen aus
- * {@code ui.SharedState} - dem In-Memory-UI-Zustand der Quarkus-App. Damit war
- * ein verschachtelter Workflow nur ausfuehrbar, solange das UI-Modul geladen war.
+ * <p>{@code NestedWorkflowNodeExecutor} read the nested definitions from
+ * {@code ui.SharedState} — the in-memory UI state of the Quarkus app. That way
+ * a nested workflow was only executable as long as the UI module was loaded.
  *
- * <p>Der Rueckgabetyp ist {@link ApiDtos.WorkflowDef}, nicht {@code Object}:
- * die Definition ist ein Vertragstyp aus {@code quad-contract} und damit ein
- * Typ, den ein Port nennen darf. Mit {@code Object} muesste jeder Aufrufer
- * casten.
+ * <p>The return type is {@link ApiDtos.WorkflowDef}, not {@code Object}:
+ * the definition is a contract type from {@code quad-contract} and thus a
+ * type a port may name. With {@code Object} every caller would have to
+ * cast.
  *
  * <p>Implementierung: {@code WorkflowDefinitionAdapter} in quad-quarkus.
  */
 public interface WorkflowDefinitionPort {
 
     /**
-     * Liefert eine Workflow-Definition per ID oder {@code null}, wenn unbekannt.
+     * Returns a workflow definition by ID or {@code null} if unknown.
      *
-     * <p>{@code null} ist ein erwarteter Rueckgabewert: ein Nested-WorkflowNode
-     * verweist auf eine ID, die geloescht oder nie deployed worden sein kann. Die
-     * Engine behandelt das als Knoten-Fehler, nicht als Exception.
+     * <p>{@code null} is an expected return value: a NestedWorkflowNode
+     * references an ID that may have been deleted or never deployed. The
+     * engine treats that as a node error, not as an exception.
      */
     ApiDtos.WorkflowDef find(String workflowId);
 }

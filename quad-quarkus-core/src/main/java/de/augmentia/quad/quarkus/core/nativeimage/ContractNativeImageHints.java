@@ -5,23 +5,23 @@ import de.augmentia.quad.contract.StepRecord;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 /**
- * Native-Image-Registrierung fuer die REST-Vertrags-DTOs aus {@code quad-contract}.
+ * Native image registration for the REST contract DTOs from {@code quad-contract}.
  *
- * <p>Vor der Extraktion des Vertrags trugen die DTOs ihre
- * {@code @RegisterForReflection}-Annotation selbst. Das contract-Modul ist aber
- * framework-neutral und darf keine Quarkus-Annotation mehr nennen - ein Enforcer
- * verbietet das. Die Registrierung wandert damit in die Quarkus-Schicht.
+ * <p>Before the extraction of the contract the DTOs carried their
+ * {@code @RegisterForReflection} annotation themselves. The contract module, however, is
+ * framework-neutral and may no longer name a Quarkus annotation - an Enforcer
+ * forbids that. The registration therefore moves into the Quarkus layer.
  *
- * <p>Warum ueberhaupt explizit: {@code ApiDtos} wird nicht nur als REST-Parameter
- * und -Rueckgabe benutzt, sondern an mindestens einer Stelle direkt mit einem
- * {@code ObjectMapper} gelesen und geschrieben. Diese manuelle Jackson-Nutzung
- * sieht der Quarkus-REST-Processor nicht, registriert die Typen also nicht
- * automatisch. Ohne diesen Eintrag liefert ein GraalVM-Image beim (De-)Serialisieren
- * dieser DTOs eine leere bzw. fehlerhafte Abbildung.
+ * <p>Why explicit in the first place: {@code ApiDtos} is used not only as a REST parameter
+ * and return type but in at least one place is read and written directly with an
+ * {@code ObjectMapper}. This manual Jackson usage
+ * is not visible to the Quarkus REST processor, so it does not register the types
+ * automatically. Without this entry a GraalVM image delivers an empty or faulty mapping
+ * when (de-)serialising these DTOs.
  *
- * <p>Registriert werden alle 13 verschachtelten Typen von {@link ApiDtos} plus
- * {@link StepRecord}. Bewusst Class-Literale: ein umbenanntes DTO bricht den
- * Build, statt zur Laufzeit still zu fehlen.
+ * <p>All 13 nested types of {@link ApiDtos} plus
+ * {@link StepRecord} are registered. Deliberately class literals: a renamed DTO breaks the
+ * build, instead of being silently missing at runtime.
  */
 @RegisterForReflection(
     targets = {

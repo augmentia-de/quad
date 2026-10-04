@@ -39,7 +39,7 @@ public class WorkflowTransferService {
     @Inject
     SharedState state;
 
-    /** Abbruch with HTTP-Status for Client. */
+    /** Abort with HTTP status for the client. */
     public static class TransferException extends RuntimeException {
         public final int status;
 

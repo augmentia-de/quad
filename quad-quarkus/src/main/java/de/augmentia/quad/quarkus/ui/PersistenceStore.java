@@ -28,12 +28,12 @@ public class PersistenceStore {
     @Inject
     SqlDialect dialect;
 
-    /** Test-Hook (analog SessionStore.setDataSource): erlaubt Unit-Tests ohne CDI. */
+    /** Test hook (analogous to SessionStore.setDataSource): allows unit tests without CDI. */
     public void setDataSource(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
-    /** Test-Hook: erlaubt Unit-Tests ohne CDI for SqlDialect. */
+    /** Test hook: allows unit tests without CDI for SqlDialect. */
     public void setDialect(SqlDialect dialect) {
         this.dialect = dialect;
     }
@@ -260,7 +260,7 @@ public class PersistenceStore {
         }
     }
 
-    /** Alle Runs from workflow_state (neueste zuerst). */
+    /** All runs from workflow_state (newest first). */
     public List<RunStore.PersistedRun> listRunsFromDb() {
         String sql = "select id, workflow_id, status, initial_data, step_results, executing_from, " +
             "restart_count, started_at, finished_at, duration_ms, kind, step_index " +

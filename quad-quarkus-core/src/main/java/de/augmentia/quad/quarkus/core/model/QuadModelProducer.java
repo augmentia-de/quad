@@ -9,21 +9,21 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 
 /**
- * Stellt den Modell-Stack des Kerns als CDI-Beans bereit.
+ * Provides the model stack of the core as CDI beans.
  *
- * <p>Bisher hat die App das inline getan
- * ({@code new TieredChatModel(TieredModelConfig.fromEnv())}). Der Kern liefert die
- * Konfiguration, aber kein Arc-Binding — genau das ist die Lücke, die diese Schicht
- * schließt.
+ * <p>Previously the app did this inline
+ * ({@code new TieredChatModel(TieredModelConfig.fromEnv())}). The core provides the
+ * configuration but no Arc binding — that is exactly the gap this layer
+ * closes.
  *
- * <p>Absichtlich {@link Singleton} statt {@link ApplicationScoped}: normale Scopes
- * erzeugen einen Client-Proxy, der einen No-Arg-Konstruktor braucht.
- * {@link TieredChatModel} hat keinen, Arc würde den Build mit
- * "no default constructor" abbrechen.
+ * <p>Intentionally {@link Singleton} instead of {@link ApplicationScoped}: normal scopes
+ * create a client proxy that needs a no-arg constructor.
+ * {@link TieredChatModel} has none, and Arc would fail the build with
+ * "no default constructor".
  *
- * <p>Hier wird bewusst kein unqualifizierter {@code ChatModel} produziert: die
- * App injiziert an mehreren Stellen {@code ChatModel}. Ein zusätzlicher
- * unqualifizierter Bean-Typ wäre dort eine mehrdeutige Abhängigkeit.
+ * <p>No unqualified {@code ChatModel} is deliberately produced here: the
+ * app injects {@code ChatModel} in several places. An additional
+ * unqualified bean type would be an ambiguous dependency there.
  */
 @ApplicationScoped
 public class QuadModelProducer {
@@ -33,10 +33,10 @@ public class QuadModelProducer {
     static final String DEFAULT_TIER_PROPERTY = "quad.model.default-tier";
 
     /**
-     * Baut die Tier-Konfiguration aus der Umgebung. {@code TieredModelConfig.fromEnv()}
-     * liest die Variablen mit den Präfixen OPENAI, LLM, SIMPLE und ADVANCED.
-     * {@code quad.model.default-tier} überschreibt nur die Wahl des Primär-Tiers, damit
-     * sie auch aus application.properties statt nur aus der Env gesetzt werden kann.
+     * Builds the tier configuration from the environment. {@code TieredModelConfig.fromEnv()}
+     * reads the variables with the prefixes OPENAI, LLM, SIMPLE and ADVANCED.
+     * {@code quad.model.default-tier} overrides only the choice of the primary tier, so that
+     * it can also be set from application.properties instead of only from the env.
      */
     @Produces
     @Singleton
@@ -46,13 +46,13 @@ public class QuadModelProducer {
             .getOptionalValue(DEFAULT_TIER_PROPERTY, String.class)
             .map(raw -> {
                 var tier = ModelTier.fromString(raw);
-                log.infof("quad.model.default-tier=%s überschreibt LLM_DEFAULT_TIER=%s", tier, fromEnv.defaultTier());
+                log.infof("quad.model.default-tier=%s overrides LLM_DEFAULT_TIER=%s", tier, fromEnv.defaultTier());
                 return new TieredModelConfig(fromEnv.simple(), fromEnv.advanced(), tier);
             })
             .orElse(fromEnv);
     }
 
-    /** Ein einziger TieredChatModel pro Container; die Modelle selbst werden pro Tier lazy erzeugt. */
+    /** A single TieredChatModel per container; the models themselves are created lazily per tier. */
     @Produces
     @Singleton
     public TieredChatModel tieredChatModel(TieredModelConfig config) {

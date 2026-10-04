@@ -165,7 +165,7 @@ public class SystemController {
         return Response.ok(Map.of("toolCalls", 5, "timeouts", 2, "guardrails", 1)).build();
     }
 
-    // ─── Runs (vereinheitlichte Filter-Sicht, gleiche Daten wie UI) ──────
+    // ─── Runs (unified filter view, same data as the UI) ──────
 
     /**
      * Returns runs as an aggregated view over {@link TelemetryStore#query}: per run

@@ -62,7 +62,7 @@ public class ApiDtos {
         public String userMessageTemplate;
         /** true = agent produces structured JSON; jsonOutputSchema is the enforced schema. */
         public boolean jsonOutput;
-        /** JSON Schema (JSON-String) for strukturierte Ausgabe, if jsonOutput aktiv ist. */
+        /** JSON schema (JSON string) for structured output, if jsonOutput is active. */
         public String jsonOutputSchema;
         public String chatParameters;
 /** true = sichtbar in der klassischen UI; false = intern generierter WF-Step-Agent. */
@@ -277,7 +277,7 @@ public class ApiDtos {
         }
     }
 
-    /** Ein einzelner Schritt an Run-Sicht (from session_events STEP/SPAN-Records). */
+    /** A single step in the run view (from session_events STEP/SPAN records). */
     public static class StepView {
         public String stepId;
         public String kind;
@@ -293,7 +293,7 @@ public class ApiDtos {
         }
     }
 
-    /** Run-Sicht (aggregiert from TelemetryStore.query) for the UI-Runs-Ansicht. */
+    /** Run view (aggregated from TelemetryStore.query) for the UI runs view. */
     public static class RunView {
         public String runId;
         public String kind;

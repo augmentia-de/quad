@@ -3,37 +3,37 @@ package de.augmentia.quad.workflow.engine.port;
 import java.util.Optional;
 
 /**
- * Port fuer Checkpoints, mit denen ein Lauf nach einem Neustart fortgesetzt wird.
+ * Port for checkpoints with which a run is continued after a restart.
  *
- * <p>{@code RunStateWriter} und {@code WorkflowEngine} griffen direkt auf
- * {@code StepSnapshotStore} zu. Ohne Port haette die Engine den
- * Persistenzmechanismus des Deployments gekannt - inklusive Tabellennamen und
- * {@code Optional}-Signatur.
+ * <p>{@code RunStateWriter} and {@code WorkflowEngine} accessed
+ * {@code StepSnapshotStore} directly. Without a port the engine would know
+ * the persistence mechanism of the deployment — including table names and
+ * the {@code Optional} signature.
  *
  * <p>Implementierung: {@code StepCheckpointAdapter} in quad-quarkus.
  */
 public interface StepCheckpointPort {
 
     /**
-     * Sichert den Fortschritt eines Laufs.
+     * Secures the progress of a run.
      *
-     * @return {@code true}, wenn der Snapshot geschrieben wurde
+     * @return {@code true} if the snapshot was written
      */
     boolean save(String runId, int stepIndex, String runStatus,
                  String snapshotJson, String memorySummary);
 
     /**
-     * Liest den juengsten Snapshot eines Laufs fuer Resume/Crash-Recovery.
+     * Reads the most recent snapshot of a run for resume/crash recovery.
      *
-     * <p>Gab es keinen, ist das Ergebnis {@link Optional#empty()} - kein Fehler.
+     * <p>If there was none, the result is {@link Optional#empty()} — not an error.
      */
     Optional<Checkpoint> loadLast(String runId);
 
-    /** Teil eines Checkpoints; vom Adapter aus dem Store-Snapshot erzeugt. */
+    /** Part of a checkpoint; created by the adapter from the store snapshot. */
     record Checkpoint(String runId, int stepIndex, String stepStatus,
                       String environmentState, String memorySummary) {
 
-        /** Fortsetzbarer Zustand fuer die Engine; {@code null}, wenn nichts gespeichert war. */
+        /** Resumable state for the engine; {@code null} if nothing was stored. */
         public String environment() {
             return environmentState;
         }

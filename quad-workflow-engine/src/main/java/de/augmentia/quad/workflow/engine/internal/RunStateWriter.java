@@ -47,7 +47,7 @@ public class RunStateWriter {
         sessionState.addFinding(firstLine(title, output));
     }
 
-    /** Speichert an Step-Snapshot (Run-Kontext + Session-Summary). */
+    /** Stores a step snapshot (run context + session summary). */
     public void saveCheckpoint(WorkflowRunState run, WorkflowExecutionContext ctx) {
         String snapshotJson = ctx.snapshotJson();
         String memorySummary = null;

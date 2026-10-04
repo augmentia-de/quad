@@ -93,9 +93,9 @@ class LoopNodeExecutorResumeTest {
         StepSnapshotStore snapshotStore = new StepSnapshotStore();
         snapshotStore.setDataSource(ds);
         snapshotStore.setDialect(sqliteDialect());
-        // Seit der Engine-Extraktion nimmt RunStateWriter seine beiden Ports
-        // im Konstruktor statt per Feld-Injection. StepCheckpointAdapter ist
-        // genau die Uebersetzung StepSnapshotStore -> StepCheckpointPort.
+        // Since the engine extraction RunStateWriter takes its two ports
+        // in the constructor instead of via field injection. StepCheckpointAdapter is
+        // exactly the translation StepSnapshotStore -> StepCheckpointPort.
         return new RunStateWriter(newRunStore(ds), new StepCheckpointAdapter(snapshotStore));
     }
 
@@ -112,7 +112,7 @@ class LoopNodeExecutorResumeTest {
         Map.of("source", "loop", "target", "body"),
         Map.of("source", "body", "target", "loop"));
 
-    /** Fake-Runner wie {@code WorkflowEngine.runNode}: vorhandener Output → skip (kein Doppel-Run). */
+    /** Fake runner like {@code WorkflowEngine.runNode}: existing output → skip (no double run). */
     private static NodeRunner countingRunner(AtomicInteger runs, String key) {
         return (node, all, edges, ctx, skip) -> {
             String id = String.valueOf(node.get("id"));
@@ -149,7 +149,7 @@ class LoopNodeExecutorResumeTest {
         ex.execute((Map<String, Object>) ALL_NODES.get(0), ALL_NODES, EDGES, resume,
             countingRunner(bodyRuns, "resumed"));
 
-        // Iteration 1 (abgeschlossen) wird NICHT erneut aufgerufen (startIter=2). Iteration 2+3 → 2 Runs.
+        // iteration 1 (completed) is NOT called again (startIter=2). iterations 2+3 → 2 runs.
         assertEquals(2, bodyRuns.get(),
             "completed iteration 1 is not re-run; loop continues from iteration 2");
         assertTrue(resume.loopIterations().get("loop") >= 3, "loop progressed past restored iteration");

@@ -17,9 +17,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * fallback to the other tier (e.g. gpt-4o → gpt-4o-mini).
  * Models are created lazily per tier and cached.
  *
- * <p>Wohnt in quad-quarkus-core, weil die Modellverdrahtung die einzige Stelle des
- * Kerns ist, die ein Framework braucht: der Rest von quad-core bleibt neutral und
- * wird auch vom Spring-Boot-Worker genutzt.
+ * <p>Lives in quad-quarkus-core because the model wiring is the only place in the
+ * core that needs a framework: the rest of quad-core stays neutral and
+ * is also used by the Spring Boot worker.
  */
 public class TieredChatModel implements ChatModel {
 

@@ -13,22 +13,22 @@ import de.augmentia.quad.core.tool.builtin.WriteTool;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 /**
- * Native-Image-Registrierung für die reflektive Tool-Invocation.
+ * Native-image registration for the reflective tool invocation.
  *
- * <p>Der Werkzeug-Aufbau im Kern ist vollständig reflektiv:
- * {@code ToolCatalog} und {@code QuadToolRegistry.registerFromAgent} iterieren über
- * {@code getDeclaredMethods()}, filtern auf die {@code @Tool}-Annotation und
- * rufen die Methode später über {@code Method.invoke()} auf. In einem GraalVM-Image
- * existiert diese Reflection-Metadaten-Anbindung nur, wenn sie registriert wurde —
- * ohne sie liefert {@code getDeclaredMethods()} nichts und der Tool-Katalog bleibt leer.
+ * <p>The tool wiring in the core is entirely reflective:
+ * {@code ToolCatalog} and {@code QuadToolRegistry.registerFromAgent} iterate over
+ * {@code getDeclaredMethods()}, filter on the {@code @Tool} annotation and
+ * call the method later via {@code Method.invoke()}. In a GraalVM image
+ * this reflection metadata binding only exists if it was registered —
+ * without it {@code getDeclaredMethods()} returns nothing and the tool catalog stays empty.
  *
- * <p>Bewusst eine eigene Klasse mit Class-Literal-Referenzen: das hält die Liste der
- * Tools an einer Stelle und macht einen fehlenden Eintrag beim Review sichtbar, statt
- * ihn in einer Konfigurationsdatei zu verstecken.
+ * <p>Deliberately a separate class with class-literal references: that keeps the list of
+ * tools in one place and makes a missing entry visible in review, instead of
+ * hiding it in a configuration file.
  *
- * <p><b>Restlücke:</b> Agenten-Klassen mit eigenen {@code @Tool}-Methoden sind
- * anwendungsspezifisch und liegen außerhalb dieses Moduls. Sie registriert die App
- * selbst, z. B. {@code @RegisterForReflection(targets = MyAgent.class)}.
+ * <p><b>Remaining gap:</b> agent classes with their own {@code @Tool} methods are
+ * application-specific and lie outside this module. The application registers them
+ * itself, e.g. {@code @RegisterForReflection(targets = MyAgent.class)}.
  */
 @RegisterForReflection(
     targets = {

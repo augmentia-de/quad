@@ -6,11 +6,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Unveraenderliche Sicht auf einen Lauf, wie REST-Antworten sie ausgeben.
+ * Immutable view of a run, as REST responses output it.
  *
- * <p>Gehoert neben {@link WorkflowRunState}, weil die Frage "was zeigt die
- * API" nicht von der Persistenz abhaengt - der Spring-Boot-Worker hat
- * denselben Bedarf, aber keine {@code RunStore}.
+ * <p>Belongs next to {@link WorkflowRunState}, because the question "what does the
+ * API show" does not depend on persistence - the Spring Boot worker has
+ * the same need but no {@code RunStore}.
  */
 public record WorkflowRunSnapshot(String runId, String workflowId, String status,
                           String startedAt, String finishedAt, long durationMs,
@@ -46,4 +46,4 @@ public record WorkflowRunSnapshot(String runId, String workflowId, String status
     }
 }
 
-/** Snapshot eines Laufs fuer REST-Antworten; unveraenderlich. */
+/** Snapshot of a run for REST responses; immutable. */

@@ -23,7 +23,7 @@ public class RunStore implements WorkflowRunPort {
     @Inject
     PersistenceStore db;
 
-    /** Persistierte Run-Zeile from der DB (workflow_state-Tabelle). */
+    /** Persisted run row from the DB (workflow_state table). */
     public record PersistedRun(String runId, String workflowId, String status,
                                String initialData, List<WorkflowNodeResult> nodeResults,
                                String executingFrom, int restartCount,
@@ -58,13 +58,13 @@ public class RunStore implements WorkflowRunPort {
         return s;
     }
 
-    /** Holt an persistierten Run from der DB (auch if er not im In-Memory-Cache liegt). */
+    /** Loads a persisted run from the DB (also if it is not in the in-memory cache). */
     /**
      * Port-Methode: identisch zu {@link #getOrLoad(String)}.
      *
-     * <p>Der Name folgt der Engine-Sicht ("lade den Lauf"), der App-Name
-     * ("get-or-load") der Cache-Semantik. Beide bleiben bestehen, weil
-     * {@code getOrLoad} auch ausserhalb des Ports benutzt wird.
+     * <p>The name follows the engine view ("load the run"), the app name
+     * ("get-or-load") describes the cache semantics. Both are retained because
+     * {@code getOrLoad} is also used outside the port.
      */
     @Override
     public WorkflowRunState load(String runId) {
@@ -119,14 +119,14 @@ public class RunStore implements WorkflowRunPort {
     }
 
     /**
-     * Port-Methode: persistiert den Lauf in die {@code workflow_state}-Tabelle.
+     * Port method: persists the run into the {@code workflow_state} table.
      *
-     * <p>Der In-Memory-Cache braucht hier keine Zuweisung mehr: seit
-     * {@link WorkflowRunState} derselbe Typ ist, den {@link #create} in
-     * {@code runs} ablegt, mutiert die Engine bereits genau das gecachte
-     * Objekt. Vorher waren Engine-Zustand und Store-Zustand zwei verschiedene
-     * Objekte - dort haette ein reines DB-Schreiben den Cache veraltet
-     * zurueckgelassen.
+     * <p>The in-memory cache no longer needs an assignment here: since
+     * {@link WorkflowRunState} is the same type that {@link #create} stores in
+     * {@code runs}, the engine already mutates exactly that cached
+     * object. Previously the engine state and the store state were two different
+     * objects — a pure DB write would have left the cache stale
+     * in that case.
      */
     @Override
     public void save(WorkflowRunState run) {

@@ -9,15 +9,15 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 /**
- * Bindet die Engine an die Quarkus-Agenten- und Messaging-Schicht.
+ * Binds the engine to the Quarkus agent and messaging layer.
  *
- * <p>{@code AgentNodeExecutor} rief vorher direkt {@code ChannelAgentFactory}
- * und {@code MessagingRouter}. Beides sind Quarkus-Beans; die Engine haette
- * damit ein weiteres Framework-Binding gehabt.
+ * <p>{@code AgentNodeExecutor} previously called {@code ChannelAgentFactory}
+ * and {@code MessagingRouter} directly. Both are Quarkus beans; the engine would
+ * have had yet another framework binding.
  *
- * <p>Die Serialisierung der Ausgangsnachricht liegt hier: die Engine uebergibt
- * den bereits gerenderten Text, der Adapter baut daraus die
- * {@link QuadMessage}. So bleibt die Nachrichten-Darstellung in der App.
+ * <p>The serialisation of the outgoing message lives here: the engine hands over
+ * the already rendered text, the adapter builds the
+ * {@link QuadMessage} from it. That way the message representation stays in the app.
  */
 @ApplicationScoped
 public class AgentInvocationAdapter implements AgentInvocationPort {

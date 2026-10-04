@@ -46,7 +46,7 @@ public record StepRecord(
     public static String KIND_EDGE = "edge";
     public static String KIND_MESSAGING = "messaging";
 
-    /** convenient factory value for an new, running Schritt. */
+    /** Convenient factory value for a new, running step. */
     public static StepRecord start(String id, String kind, String inputHash) {
         return new StepRecord(id, kind, inputHash, STATUS_RUNNING, null,
                 Instant.now().toString(), null, 0L, 0);

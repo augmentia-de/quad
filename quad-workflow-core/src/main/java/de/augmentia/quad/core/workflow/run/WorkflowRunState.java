@@ -4,19 +4,19 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Zustand eines Workflow-Laufs, framework-neutral.
+ * State of a workflow run, framework-neutral.
  *
- * <p>Das Modell ist bewusst feldoffen und fluchbar: die Engine mutiert den
- * Zustand waehrend der Ausfuehrung direkt ({@code run.status = "running"}).
- * Eine Builder-/Setter-Getter-Variante wuerde jeden der ~30 Zugriffsstellen in
- * den Node-Executors umschreiben, ohne Nutzen.
+ * <p>The model is deliberately open and mutable: the engine mutates the
+ * state directly during execution ({@code run.status = "running"}).
+ * A builder/setter-getter variant would require changing each of the ~30 access points
+ * that the node executors write, without benefit.
  *
- * <p>Vorher existierte dieser Zustand zweimal: als package-private
- * {@code RunStore.RunState} (Persistenz) und als hier. Der Persistenztyp
- * brauchte einen package-privaten Konstruktor und gehoerte damit zur
- * Quarkus-App - die Engine konnte ihn nicht sehen, und ein Adapter haette
- * Feld fuer Feld kopieren muessen. Jetzt gibt es genau einen Typ, den sowohl
- * die Engine als auch {@code RunStore} benutzen.
+ * <p>Previously this state existed twice: as a package-private
+ * {@code RunStore.RunState} (persistence) and as here. The persistence type
+ * needed a package-private constructor and thus belonged to the
+ * Quarkus app - the engine could not see it, and an adapter would have to map
+ * field by field. Now there is exactly one type that both
+ * the engine and {@code RunStore} use.
  */
 public class WorkflowRunState {
 
@@ -31,10 +31,10 @@ public class WorkflowRunState {
     public volatile String executingFrom;
     public volatile int restartCount = 0;
 
-    /** Run kind: "WORKFLOW" (default) oder "AGENT" - traegt das gemeinsame Run-Modell. */
+    /** Run kind: "WORKFLOW" (default) or "AGENT" - carries the shared run model. */
     public volatile String kind = "WORKFLOW";
 
-    /** Schrittzaehler; Basis fuer deterministisches Resume. */
+    /** Step counter; basis for deterministic resume. */
     public volatile int stepIndex = 0;
 
     public final List<WorkflowNodeResult> nodeResults = new CopyOnWriteArrayList<>();
@@ -49,7 +49,7 @@ public class WorkflowRunState {
         return new WorkflowRunState(runId, workflowId, java.time.Instant.now().toString());
     }
 
-    /** Setzt den Lauf auf "neu starten" zurueck: Status, Schrittzaehler, Ergebnisse. */
+    /** Resets the run to "restart": status, step counter, results. */
     public void restart() {
         this.restartCount++;
         this.status = "running";
@@ -61,7 +61,7 @@ public class WorkflowRunState {
                 r.nodeId(), r.type(), r.title(), "pending", "", ""));
     }
 
-    /** Unveraenderliche Kopie fuer REST-Ausgaben. */
+    /** Immutable copy for REST output. */
     public WorkflowRunSnapshot snapshot() {
         return new WorkflowRunSnapshot(runId, workflowId, status, startedAt, finishedAt,
                 durationMs, List.copyOf(nodeResults), initialData, executingFrom,

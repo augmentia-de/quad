@@ -22,12 +22,12 @@ import org.jboss.logging.Logger;
  */
 public class WorkflowSupport {
 
-    /** Defaults; identisch zu den frueheren @ConfigProperty-defaultValue-Angaben. */
+    /** Defaults; identical to the previous @ConfigProperty defaultValue specifications. */
     public static final int DEFAULT_MEMORY_MAX_MESSAGES = 50;
     public static final long DEFAULT_TIMEOUT_MS = 600_000L;
     public static final long DEFAULT_MESSAGING_TIMEOUT_MS = 30_000L;
 
-    /** Bequemer Konstruktor mit den Defaults - fuer Tests und den Spring-Worker. */
+    /** Convenient constructor with the defaults - for tests and the Spring worker. */
     public WorkflowSupport(WorkflowRunPort runPort, RunStateWriter runWriter) {
         this(runPort, runWriter, DEFAULT_MEMORY_MAX_MESSAGES,
              DEFAULT_TIMEOUT_MS, DEFAULT_MESSAGING_TIMEOUT_MS);
@@ -50,13 +50,12 @@ public class WorkflowSupport {
     private final long messagingTimeoutMs;
 
     /**
-     * Die drei Konfigurationswerte kommen als Parameter statt ueber
-     * {@code @ConfigProperty}. MicroProfile-Config ist eine Container-Bindung;
-     * mit ihr haette die Engine kein {@code new} mehr erlaubt und der
-     * Spring-Boot-Worker muesste MicroProfile nachbauen, nur um drei Zahlen
-     * zu uebergeben.
+     * The three configuration values arrive as parameters instead of via
+     * {@code @ConfigProperty}. MicroProfile Config is a container binding;
+     * with it the engine would no longer allow a {@code new} and the
+     * Spring Boot worker would have to rebuild MicroProfile just to pass in three numbers.
      *
-     * <p>Die Defaults entsprechen den bisherigen {@code defaultValue}-Angaben.
+     * <p>The defaults correspond to the previous {@code defaultValue} specifications.
      */
     public WorkflowSupport(final WorkflowRunPort runPort, final RunStateWriter runWriter,
                            final int memoryMaxMessages, final long defaultTimeoutMs,

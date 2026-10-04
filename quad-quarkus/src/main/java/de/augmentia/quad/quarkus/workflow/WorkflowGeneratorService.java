@@ -478,8 +478,8 @@ public class WorkflowGeneratorService {
     }
 
     /**
-     * Extrahiert das Output-JSON-Schema an generierten Steps from {@code data.output}.
-     * Liefert nur at an "echten" Schema (mehr as nur {@code type}) an Wert, damit
+     * Extracts the output JSON schema at generated steps from {@code data.output}.
+     * Yields only at "real" schema (more than just {@code type}) a value, so that
      * the Engine es via {@code StructuredOutputConfig} as responseFormat erzwingen kann.
      */
     private String outputSchemaOf(Map<String, Object> data) {

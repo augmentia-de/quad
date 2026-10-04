@@ -1,10 +1,10 @@
 package de.augmentia.quad.core.workflow.run;
 
 /**
- * Ergebnis eines einzelnen Knotens innerhalb eines Laufs.
+ * Result of a single node within a run.
  *
- * <p>Vorher {@code WorkflowNodeResult}. Bewusst als Record: unveraenderlich,
- * Aenderungen ersetzen das Element in der Liste (siehe
+ * <p>Previously {@code WorkflowNodeResult}. Deliberately a record: immutable,
+ * changes replace the element in the list (see
  * {@code RunStateWriter.updateNode}).
  */
 public record WorkflowNodeResult(String nodeId, String type, String title, String status,

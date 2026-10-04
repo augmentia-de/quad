@@ -16,19 +16,19 @@ import jakarta.inject.Inject;
 import java.util.List;
 
 /**
- * Baut die containerfreie Engine auf und bringt sie als CDI-Bean in die App.
+ * Assembles the container-free engine and brings it into the app as a CDI bean.
  *
- * <p>Die Engine-Klassen haben bewusst keinen Konstruktor mit Injection - sie
- * sind mit {@code new} benutzbar und im Spring-Boot-Worker genauso lauffaehig
- * wie hier. Quarkus braucht aber trotzdem eine Bean, und genau eine: diesen
- * Producer.
+ * <p>The engine classes deliberately have no constructor with injection — they
+ * are usable with {@code new} and just as capable in the Spring Boot worker
+ * as here. Quarkus nevertheless needs a bean, and exactly one: this
+ * producer.
  *
- * <p>Damit ist die Verdrahtung an einer Stelle sichtbar. Vorher war sie ueber
- * 21 {@code @ApplicationScoped}-Klassen mit {@code @Inject}-Feldern verteilt,
- * und niemand konnte ohne Container sagen, wer wen braucht.
+ * <p>That makes the wiring visible in one place. Previously it was spread across
+ * 21 {@code @ApplicationScoped} classes with {@code @Inject} fields,
+ * and nobody could say without a container who needs whom.
  *
- * <p>Die Executoren werden hier explizit aufgezaehlt. Ein neuer Knotentyp wird
- * also an genau zwei Stellen sichtbar: seine Klasse und diese Liste.
+ * <p>The executors are explicitly enumerated here. A new node type thus becomes
+ * visible in exactly two places: its class and this list.
  */
 @ApplicationScoped
 public class WorkflowEngineProducer {
@@ -40,8 +40,8 @@ public class WorkflowEngineProducer {
     @Inject AgentInvocationPort agents;
 
     /**
-     * Konfiguration aus MicroProfile-Config - nur hier, weil dies die einzige
-     * Klasse ist, die den Container kennt. Die Engine bekommt einfache Zahlen.
+     * Configuration from MicroProfile Config — only here, because this is the only
+     * class that knows the container. The engine gets plain numbers.
      */
     @org.eclipse.microprofile.config.inject.ConfigProperty(
             name = "quad.memory.max-messages", defaultValue = "50")

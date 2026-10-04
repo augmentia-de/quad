@@ -12,16 +12,16 @@ import jakarta.inject.Inject;
 import java.time.Instant;
 
 /**
- * Bindet die Engine an die vier Ereignis-Protokolle der Quarkus-App.
+ * Binds the engine to the four event logs of the Quarkus app.
  *
- * <p>{@code WorkflowEngine} schrieb vorher direkt in {@code SessionStore},
- * {@code AuditStore}, {@code TelemetryStore} und - fuer den Metrikzaehler -
- * in {@code SharedState}. Vier Beans, nur damit ein Lauf seinen Fortschritt
- * melden kann. Dieser Adapter ist die einzige Stelle, die diese vier kennt.
+ * <p>{@code WorkflowEngine} previously wrote directly to {@code SessionStore},
+ * {@code AuditStore}, {@code TelemetryStore} and - for the metric counter -
+ * to {@code SharedState}. Four beans purely so that a run can report its progress
+ * somehow. This adapter is the only place that knows these four.
  *
- * <p>Die Semantik der Aufrufe ist identisch zur vorherigen Direktverdrahtung;
- * umbenannt wurde nur, was jetzt ueber den Port laeuft
- * ({@code recordLifecycle} statt {@code recordRunLifecycle}).
+ * <p>The semantics of the calls are identical to the previous direct wiring;
+ * only what now runs via the port was renamed
+ * ({@code recordLifecycle} instead of {@code recordRunLifecycle}).
  */
 @ApplicationScoped
 public class RunEventAdapter implements RunEventPort {

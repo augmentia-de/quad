@@ -75,7 +75,7 @@ public class WorkflowEngine {
         if (restoredOutputs != null) ctx.outputs().putAll(restoredOutputs);
         if (resume) {
             // level 12: Losgeht's from the persistierten, versions-tragen Snapshot — reicher Loop/Join/
-            // Async-Zustand (outputs, statuses, joinDeadline, loopIterations) statt nur nodeResults.
+            // async state (outputs, statuses, joinDeadline, loopIterations), not just nodeResults.
             stepCheckpoints.loadLast(run.runId).ifPresent(snap -> {
                 ctx.restoreSnapshot(snap.environmentState());
                 log.infof("══ WORKFLOW ↻ [%s] RESUME — Snapshot step=%d gela (status=%s) ══",
@@ -165,11 +165,11 @@ public class WorkflowEngine {
         afterNode(node, ctx, startMs);
     }
 
-    /** Inkrementiert stepIndex, speichert Step-Snapshot and Telemetry. */
+    /** Increments stepIndex, saves the step snapshot and the telemetry. */
     private void afterNode(Map<String, Object> node, WorkflowExecutionContext ctx, long startMs) {
         WorkflowRunState run = ctx.run();
-        // Sub-Contexts (z. B. NestedWorkflowNodeExecutor) haben ka RunState — synchronisieren
-        // auf null waere a NPE ("Cannot enter synchronized block because 'run' is null").
+        // Sub-contexts (e.g. NestedWorkflowNodeExecutor) have no RunState — synchronising
+        // on null would be an NPE ("Cannot enter synchronized block because 'run' is null").
         if (run != null) {
             synchronized (run) {
                 run.stepIndex++;

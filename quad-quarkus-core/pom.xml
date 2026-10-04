@@ -12,31 +12,31 @@
 
     <artifactId>quad-quarkus-core</artifactId>
     <name>QUAD - Quarkus Adapter Layer</name>
-    <description>Quarkus-spezifische Adapter-Schicht ueber quad-core: CDI-Produzenten,
-        MicroProfile-Config-Mapping, Jandex-Index und Native-Image-Hints.
+    <description>Quarkus-specific adapter layer over quad-core: CDI producers,
+        MicroProfile config mapping, Jandex index and native image hints.
 
-        quad-core bleibt framework-neutral und darf von Nicht-Quarkus-Consumern
-        (z. B. kafka-platform/quad-workflow-worker) benutzt werden. Alles was Arc,
-        Quarkus-Build-Time oder GraalVM braucht, liegt in diesem Modul.
+        quad-core remains framework-neutral and may be used by non-Quarkus consumers
+        (e.g. kafka-platform/quad-workflow-worker). Everything that needs Arc,
+        Quarkus build time or GraalVM, lies in this module.
 
-        Bewusst KEINE Abhaengigkeit auf io.quarkiverse.langchain4j: der Code
-        erzeugt ChatModels bisher ueber de.augmentia.quad.core.config.ModelFactory
-        mit dev.langchain4j:langchain4j-open-ai. Die quarkus-langchain4j-Extension
-        waere eine eigene Migration mit Versionskopplung an die Quarkus-Plattform
-        und wird erst mitgezogen, wenn die Produzenten darauf umgestellt werden.</description>
+        Deliberately NO dependency on io.quarkiverse.langchain4j: the code
+        creates ChatModels so far via de.augmentia.quad.core.config.ModelFactory
+        with dev.langchain4j:langchain4j-open-ai. The quarkus-langchain4j extension
+        would be a separate migration with version coupling to the Quarkus platform
+        and is only pulled in once the producers are switched over.</description>
 
     <dependencies>
-        <!-- Der framework-neutrale Kern. -->
+        <!-- The framework-neutral core. -->
         <dependency>
             <groupId>de.augmentia.quad</groupId>
             <artifactId>quad-core</artifactId>
         </dependency>
 
         <!--
-            quad-tool-builtin wird ausschliesslich wegen der Native-Image-Hints
-            gebraucht: QuadNativeImageHints referenziert die @Tool-Klassen per
-            Class-Literal. quad-core registriert sie selbst nicht, weil ihm das
-            Modul fehlt.
+            quad-tool-builtin is needed exclusively because of the native image hints:
+            QuadNativeImageHints references the @Tool classes by
+            class literals. quad-core does not register them itself, because that
+            module is missing.
         -->
         <dependency>
             <groupId>de.augmentia.quad</groupId>
@@ -44,23 +44,23 @@
         </dependency>
 
         <!--
-            quad-contract wird ebenfalls nur fuer die Native-Image-Hints gebraucht:
-            die REST-DTOs trugen vor der Extraktion @RegisterForReflection direkt auf
-            sich. Im framework-neutralen contract-Modul ist diese Annotation nicht
-            mehr erlaubt, also registriert die Quarkus-Schicht sie per Class-Literal.
+            quad-contract is likewise only needed for the native image hints:
+            before the extraction the REST DTOs carried @RegisterForReflection on
+            themselves. In the framework-neutral contract module this annotation is not
+            allowed, so the Quarkus layer registers them via class literals.
         -->
         <dependency>
             <groupId>de.augmentia.quad</groupId>
             <artifactId>quad-contract</artifactId>
         </dependency>
 
-        <!-- CDI-Container. Hier compile, weil dieses Modul @Produces beans mit Annotationen aus Arc deklariert. -->
+        <!-- CDI container. compile here, because this module declares @Produces beans with annotations from Arc. -->
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-arc</artifactId>
         </dependency>
 
-        <!-- ChatModel-Typen der Producer. -->
+        <!-- ChatModel types of the producer. -->
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j</artifactId>
@@ -101,9 +101,9 @@
     <build>
         <plugins>
             <!--
-                Schreibt META-INF/jandex.idx. Quarkus findet den Index in
-                Abhaengigkeiten automatisch, dadurch entfaellt in der App ein
-                quarkus.index-dependency.quad-quarkus-core.*-Eintrag.
+                Writes META-INF/jandex.idx. Quarkus finds the index in
+                dependencies automatically, so a
+                quarkus.index-dependency.quad-quarkus-core.* entry in the app is no longer needed.
             -->
             <plugin>
                 <groupId>io.smallrye</groupId>
@@ -119,9 +119,9 @@
             </plugin>
 
             <!--
-                Diese Schicht darf die Quarkus-Laufzeit nicht in fremde
-                Classpaths ziehen. quad-core und die Tool-Module bleiben dadurch
-                fuer den Spring-Boot-Worker konsumierbar.
+                This layer must not pull the Quarkus runtime into foreign
+                classpaths. quad-core and the tool modules thereby remain
+                consumable for the Spring Boot worker.
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -139,8 +139,8 @@
                                     <excludes>
                                         <exclude>de.augmentia.quad:quad-workflow-core</exclude>
                                     </excludes>
-                                    <message>quad-quarkus-core ist eine reine Adapter-Schicht und
-                                        darf keine Fachlogik aus quad-workflow-core einziehen.</message>
+                                    <message>quad-quarkus-core is a pure adapter layer and
+                                        must not pull in domain logic from quad-workflow-core.</message>
                                 </bannedDependencies>
                             </rules>
                         </configuration>

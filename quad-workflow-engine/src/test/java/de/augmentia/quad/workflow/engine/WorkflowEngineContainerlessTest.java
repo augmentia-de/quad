@@ -27,16 +27,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Beweist, dass die Engine ohne DI-Container laeuft.
+ * Proves that the engine runs without a DI container.
  *
- * <p>Das ist die eigentliche Begruendung fuer den ganzen Umbau: der
- * Spring-Boot-Worker in {@code quad-workflow-worker} hat kein Arc, und genau
- * diese Klasse soll dort trotzdem benutzbar sein. Dieser Test baut die Engine
- * mit {@code new} und fuehrt einen Lauf aus - sobald wieder ein {@code @Inject}
- * ins Spiel kommt, fehlt der Container und die Konstruktion bricht sofort.
+ * <p>This is the actual reason for the whole refactoring: the
+ * Spring Boot worker in {@code quad-workflow-worker} has no Arc, and exactly
+ * this class should be usable there nonetheless. This test builds the engine
+ * with {@code new} and executes a run — as soon as an {@code @Inject}
+ * comes into play, the container is missing and the construction breaks immediately.
  *
- * <p>Die Ports sind hier triviale Stubs. Das ist Absicht: geprueft wird nicht
- * die Adapter-Seite, sondern dass die Engine keine Container-Kenntnis hat.
+ * <p>The ports are trivial stubs here. That is deliberate: what is checked is not
+ * the adapter side, but that the engine has no knowledge of the container.
  */
 class WorkflowEngineContainerlessTest {
 
@@ -70,15 +70,15 @@ class WorkflowEngineContainerlessTest {
         engine.execute(wf, run);
 
         assertThat(run.status).isEqualTo("completed");
-        // "start" wird vom AgentNodeExecutor behandelt, nicht vom Registry-Executor:
-        // genau diese Fallback-Regel wird hier mitgeprueft.
+        // "start" is handled by the AgentNodeExecutor, not by the registry executor:
+        // exactly this fallback rule is checked here as well.
         assertThat(executor.executions).isZero();
-        // Der Run wurde ueber den Port persistiert, nicht direkt in eine Tabelle
+        // the run was persisted via the port, not directly into a table
         assertThat(runs.saved).isTrue();
-        // Der Knoten hat tatsaechlich ein Ergebnis geschrieben
+        // the node really wrote a result
         assertThat(run.nodeResults).anyMatch(r -> "completed".equals(r.status())
                 && "stub-antwort".equals(r.output()));
-        // Lifecycle-Ereignisse sind ueber den Port gelaufen
+        // lifecycle events went via the port
         assertThat(events.phases).contains("RUN_STARTED", "RUN_COMPLETED");
         assertThat(events.runCounter).isEqualTo(1);
     }
@@ -110,7 +110,7 @@ class WorkflowEngineContainerlessTest {
         engine.execute(wf, run, true);
 
         assertThat(run.status).isEqualTo("completed");
-        // Restore lief ueber den Port, nicht ueber einen direkten DB-Zugriff
+        // the restore went via the port, not via a direct DB access
         assertThat(checkpoints.loads).isEqualTo(1);
     }
 
@@ -122,7 +122,7 @@ class WorkflowEngineContainerlessTest {
 
         assertThat(registry.forType("loop")).isSameAs(loop);
         assertThat(registry.forType("agent")).isSameAs(agent);
-        // Spezialfaelle laufen ueber den Agent-Executor
+        // special cases go via the agent executor
         assertThat(registry.forType("messaging-in")).isSameAs(agent);
         assertThat(registry.forType("messaging-out")).isSameAs(agent);
         assertThat(registry.forType("gibt-es-nicht")).isNull();
@@ -159,18 +159,18 @@ class WorkflowEngineContainerlessTest {
 
     // ---------------------------------------------------------------- Stubs
 
-    /** Feste Definition; die Engine liest sie nur ueber den Port. */
+    /** Fixed definition; the engine only reads it via the port. */
     /**
-     * Agent-Erzeugung ohne LLM: liefert einen Agenten mit fester Antwort.
+     * Agent creation without an LLM: yields an agent with a fixed answer.
      *
-     * <p>Damit laeuft der "start"-Knoten durch, ohne ein Modell zu brauchen -
-     * der Test prueft die Verdrahtung, nicht die Agentenlogik.
+     * <p>This way the "start" node runs through without needing a model -
+     * the test checks the wiring, not the agent logic.
      */
     private static final class StubAgents implements AgentInvocationPort {
         @Override
         public de.augmentia.quad.core.agent.Agent create(String agentId) {
-            // Agent.execute(String) ist final und laeuft ueber run(prompt, state).
-            // Also wird run(...) ueberschrieben - dort landet die Stub-Antwort.
+            // Agent.execute(String) is final and runs via run(prompt, state).
+            // So run(...) is overridden — that is where the stub answer lands.
             return new de.augmentia.quad.core.agent.Agent() {
                 @Override
                 public String run(String prompt, de.augmentia.quad.core.session.AgentSessionState state) {
@@ -201,7 +201,7 @@ class WorkflowEngineContainerlessTest {
         }
     }
 
-    /** Traeger einen beliebigen Knotentyp und zaehlt seine Ausfuehrungen. */
+    /** Carries an arbitrary node type and counts its executions. */
     private static final class StubExecutor implements NodeExecutor {
         private final Set<String> types;
 
@@ -222,7 +222,7 @@ class WorkflowEngineContainerlessTest {
         }
     }
 
-    /** Knotentyp "start" wird ueber {@code registry} nie aufgeloest; der Agent-Pfad zaehlt hier. */
+    /** Node type "start" is never resolved via {@code registry}; the agent path counts here. */
     private static final class CountingExecutor implements NodeExecutor {
         int executions;
 

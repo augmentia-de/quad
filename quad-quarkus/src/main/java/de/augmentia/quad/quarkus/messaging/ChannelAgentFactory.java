@@ -236,7 +236,7 @@ public class ChannelAgentFactory {
             agent.setJsonInput(true);
         }
         if (def.jsonOutputSchema != null && !def.jsonOutputSchema.isBlank()) {
-            // Ausgabeseite: strukturierte JSON-Ausgabe via responseFormat erzwungen.
+            // Output side: structured JSON output enforced via responseFormat.
             agent.setStructuredOutputConfig(StructuredOutputConfig.dynamicSchema(def.jsonOutputSchema));
         }
         if (def.chatParameters != null && !def.chatParameters.isBlank()) {

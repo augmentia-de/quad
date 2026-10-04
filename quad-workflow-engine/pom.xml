@@ -13,13 +13,13 @@
     <artifactId>quad-workflow-engine</artifactId>
     <name>QUAD - Workflow Engine</name>
     <description>
-        Framework-neutrale Workflow-Ausfuehrung: Graph-Walking, Node-Executors,
-        Bedingungen, Scheduler-Logik. Ausgelagert aus quad-quarkus, damit die
-        Engine ohne Quarkus testbar ist und quad-workflow-worker (Spring Boot)
-        sie direkt nutzen kann statt nur Workflow-Nodes zu serialisieren.
+        Framework-neutral workflow execution: graph walking, node executors,
+        conditions, scheduler logic. Extracted from quad-quarkus so that the
+        engine is testable without Quarkus and quad-workflow-worker (Spring Boot)
+        can use it directly instead of only serialising workflow nodes.
 
-        Persistenz wird ueber Ports (WorkflowRunPort) angebunden - dieses Modul
-        kennt weder Quarkus noch Panache noch JDBC.
+        Persistence is attached via ports (WorkflowRunPort) — this module knows
+        neither Quarkus nor Panache nor JDBC.
     </description>
 
     <dependencies>
@@ -101,8 +101,8 @@
                                     <message>
                                         Die Engine ist framework-neutral. Alles
                                         Framework-spezifische (CDI, REST, Panache,
-                                        Messaging) gehoert in quad-quarkus und wird
-                                        ueber Ports angebunden.
+                                        Messaging) belongs in quad-quarkus and is
+                                        attached via ports.
                                     </message>
                                 </bannedDependencies>
                             </rules>

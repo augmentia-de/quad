@@ -41,14 +41,14 @@
         </dependency>
 
         <!--
-            Bewusst KEINE io.quarkus-Artefakte mehr. Der Kern ist der framework-
-            neutrale Teil von QUAD und wird u. a. von
-            kafka-platform/quad-workflow-worker (Spring Boot, kein CDI-Container)
-            konsumiert. Frueher stand hier quarkus-arc mit scope=provided; das war
-            nur ueber den Kommentar "must NOT land on the classpath" geregelt und
-            ist jetzt durch den Enforcer-Ban unten ersetzt. Die @ApplicationScoped-/
-            @Inject-Annotationen bleiben erhalten, weil die Quarkus-App die
-            Kern-Beans per Jandex-Index als Arc-Beans entdeckt.
+            Deliberately NO io.quarkus artifacts any more. The core is the framework-
+            neutral part of QUAD and is, among others,
+            consumed by kafka-platform/quad-workflow-worker (Spring Boot, no CDI container).
+            Previously quarkus-arc stood here with scope=provided; that was
+            only regulated via the comment "must NOT land on the classpath" and
+            is now replaced by the Enforcer ban below. The @ApplicationScoped/
+            @Inject annotations are retained because the Quarkus app discovers
+            the core beans as Arc beans via the Jandex index.
         -->
 
         <!-- JBoss Logging -->
@@ -133,10 +133,10 @@
         </dependency>
 
         <!--
-            Elasticsearch-Client fuer ElasticsearchCapabilityIndex. Der Import ist
-            optional: wer den Index nicht nutzt, laedt das 18-MB-Artefakt nicht
-            nach. Ohne dieses optional=true wuerde jeder Konsument von quad-core
-            - auch quad-workflow-worker - den ES-Client transitiv erhalten.
+            Elasticsearch client for ElasticsearchCapabilityIndex. The dependency is
+            optional: whoever does not use the index does not load the 18 MB artifact
+            afterwards. Without this optional=true every consumer of quad-core
+            - also quad-workflow-worker - would get the ES client transitively.
         -->
         <dependency>
             <groupId>co.elastic.clients</groupId>
@@ -159,9 +159,9 @@
                 <version>0.8.12</version>
             </plugin>
             <!--
-                quad-core ist der framework-neutrale Kern. Quarkus-/GraalVM-spezifische
-                Dinge gehoeren nach quad-quarkus-core. Der Ban macht die Trennung zu
-                einem Buildfehler statt zu einem Classpath-Zufall.
+                quad-core is the framework-neutral core. Quarkus/GraalVM-specific
+                things belong in quad-quarkus-core. The ban turns the separation into
+                a build error instead of a classpath coincidence.
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -181,11 +181,11 @@
                                         <exclude>io.quarkiverse:*</exclude>
                                         <exclude>de.augmentia.quad:quad-quarkus-core</exclude>
                                     </excludes>
-                                    <message>quad-core bleibt framework-neutral. Quarkus- und
-                                        GraalVM-spezifische Abhaengigkeiten gehoeren nach
-                                        quad-quarkus-core. Betroffen ist auch ein
-                                        Transitiv-Pfad: der Spring-Boot-Worker laedt quad-core
-                                        ohne CDI-Container.</message>
+                                    <message>quad-core stays framework-neutral. Quarkus and
+                                        GraalVM-specific dependencies belong in
+                                        quad-quarkus-core. A transitive path is also affected:
+                                        the Spring Boot worker loads quad-core
+                                        without a CDI container.</message>
                                 </bannedDependencies>
                             </rules>
                         </configuration>
