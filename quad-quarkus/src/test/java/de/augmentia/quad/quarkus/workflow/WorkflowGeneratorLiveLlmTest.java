@@ -184,6 +184,11 @@ class WorkflowGeneratorLiveLlmTest {
         @Override
         public Agent buildFromDefinition(ApiDtos.AgentDefinition def) {
             requested.add(def);
+            // Mirror ChannelAgentFactory.applyAgentMessageConfig: without the system prompt the
+            // model just answers the task in prose ("## market findings") and never emits a DAG.
+            if (def.systemPrompt != null && !def.systemPrompt.isBlank()) {
+                agent.setSystemPrompt(def.systemPrompt);
+            }
             return agent;
         }
     }
@@ -216,6 +221,9 @@ class WorkflowGeneratorLiveLlmTest {
             .maxTokens(16000)
             .temperature(0.0)
             .maxRetries(0)
+            // A smoke test that cannot show what the model actually answered is useless for
+            // diagnosis; on a parse failure the raw reply is the only interesting artefact.
+            .logResponses(true)
             .build();
         assertNotNull(chatModel);
 
@@ -259,7 +267,16 @@ class WorkflowGeneratorLiveLlmTest {
             assertNotNull(n.get("config"), "node without config: " + n);
             @SuppressWarnings("unchecked")
             Map<String, Object> config = (Map<String, Object>) n.get("config");
-            assertNotNull(config.get("agentId"), "node " + n.get("id") + " has no agentId");
+            if ("join".equals(n.get("type"))) {
+                // Join nodes are structural aggregators: WorkflowGeneratorService.addJoinNode()
+                // deliberately leaves agentId unset, the runtime executes them with the join
+                // handler. What they must carry instead is the list of branches they aggregate.
+                assertNotNull(config.get("resultIds"), "join node " + n.get("id") + " has no resultIds");
+                assertFalse(((List<?>) config.get("resultIds")).isEmpty(),
+                    "join node " + n.get("id") + " aggregates nothing");
+            } else {
+                assertNotNull(config.get("agentId"), "node " + n.get("id") + " has no agentId");
+            }
         }
 
         // Every edge must reference existing nodes, otherwise the engine deadlocks.
