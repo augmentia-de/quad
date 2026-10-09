@@ -8,6 +8,7 @@ import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import de.augmentia.quad.core.guardrails.Guardrail;
 import de.augmentia.quad.core.guardrails.GuardrailPlugin;
 import de.augmentia.quad.core.guardrails.GuardrailResult;
+import de.augmentia.quad.core.hook.pipeline.AgentHook;
 import de.augmentia.quad.core.hook.pipeline.HookRegistry;
 import de.augmentia.quad.core.observability.LoggingHook;
 import de.augmentia.quad.core.agent.runtime.IdempotencyStore;
@@ -16,19 +17,12 @@ import de.augmentia.quad.core.agent.runtime.ToolExecutor;
 import de.augmentia.quad.core.tool.QuadToolRegistry;
 import de.augmentia.quad.core.tool.SubAgentTool;
 import de.augmentia.quad.core.tool.ToolArgsMapper;
-
-import de.augmentia.quad.core.capability.CapabilityRegistry;
-import de.augmentia.quad.core.capability.skill.Skill;
-import de.augmentia.quad.core.hook.plugin.AgentSkillsPlugin;
-import de.augmentia.quad.core.hook.plugin.SkillActivationHook;
-import de.augmentia.quad.core.tool.SkillLoadTool;
-import de.augmentia.quad.core.tool.SkillSearchTool;
-import de.augmentia.quad.core.tool.ToolActivatorTool;
 import dev.langchain4j.model.chat.ChatModel;
+import de.augmentia.quad.core.session.CurrentSession;
+import de.augmentia.quad.core.session.WorkspaceResolver;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,35 +40,173 @@ public class AgentBuilder<T extends Agent> {
     
     private boolean withLogging = false;
     private boolean withDefaults = false;
+    private boolean llmFromEnv = false;
     private Path workspace = Path.of(".");
     private Set<String> toolNames = null;
     private final List<Map.Entry<String, Agent>> subAgents = new ArrayList<>();
     private StructuredOutputConfig structuredOutputConfig;
     
-    private AgentBuilder(Class<T> agentClass) {
-        this.agentClass = agentClass;
-    }
-
     // Skills
     private final List<Path> skillDirs = new ArrayList<>();
     private List<String> initialSkills = List.of();
     private boolean skillSearchEnabled = false;
     private ChatModel subAgentModel;
     private ChatRequestParameters chatParameters;
+
+    // Canonical config surface (all optional)
+    private ChatModel model;
+    private String systemPrompt;
+    private String userMessageTemplate;
+    private String cachePrefix;
+    private Integer reActMaxIterations;
+    private Integer contextMaxTokens;
+    private CurrentSession currentSession;
+    private final List<Object> toolObjects = new ArrayList<>();
+    private final List<Guardrail> guardrails = new ArrayList<>();
+    private final List<AgentHook> hooks = new ArrayList<>();
     
+    private AgentBuilder(Class<T> agentClass) {
+        this.agentClass = agentClass;
+    }
+
+    private AgentBuilder(Class<T> agentClass, T agent) {
+        this.agentClass = agentClass;
+        this.agent = agent;
+    }
+
+    /** Creates a builder for the ready-to-use {@link QuadAgent} default agent. */
+    public static AgentBuilder<QuadAgent> defaultAgent() {
+        return create(QuadAgent.class);
+    }
+
     /** Creates a new builder for the given agent class. */
     public static <T extends Agent> AgentBuilder<T> create(Class<T> agentClass) {
         return new AgentBuilder<>(agentClass);
     }
+
+    /**
+     * Creates a builder around an existing agent instance. Avoids reflection and supports
+     * agents that need constructor arguments.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T extends Agent> AgentBuilder<T> of(T agent) {
+        if (agent == null) throw new IllegalArgumentException("agent must not be null");
+        return new AgentBuilder<>((Class<T>) agent.getClass(), agent);
+    }
     
-    /** Configures the LLM from environment variables (OPENAI_API_KEY, OPENAI_MODEL). */
+    /**
+     * Configures the LLM from environment variables (OPENAI_API_KEY, OPENAI_MODEL).
+     *
+     * <p>Does not instantiate the agent: the instance is created once in {@link #build()},
+     * where the model is actually applied.
+     */
     public AgentBuilder<T> withLlmFromEnv() {
-        try {
-            agent = agentClass.getDeclaredConstructor().newInstance();
-            agent.setLlm(ModelFactory.createOpenAiFromEnv());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create agent instance", e);
+        this.llmFromEnv = true;
+        return this;
+    }
+
+    /** Alias for {@link #withLlmFromEnv()} using consistent "model" naming. */
+    public AgentBuilder<T> withModelFromEnv() {
+        return withLlmFromEnv();
+    }
+
+    /** Sets an explicit {@link ChatModel}; takes precedence over {@link #withLlmFromEnv()}. */
+    public AgentBuilder<T> withModel(ChatModel model) {
+        this.model = model;
+        return this;
+    }
+
+    /** Sets the system prompt. */
+    public AgentBuilder<T> withSystemPrompt(String systemPrompt) {
+        this.systemPrompt = systemPrompt;
+        return this;
+    }
+
+    /** Sets the user message template. */
+    public AgentBuilder<T> withUserMessageTemplate(String template) {
+        this.userMessageTemplate = template;
+        return this;
+    }
+
+    /** Sets the shared cache prefix (Block A). */
+    public AgentBuilder<T> withCachePrefix(String cachePrefix) {
+        this.cachePrefix = cachePrefix;
+        return this;
+    }
+
+    /** Sets the ReAct round limit ({@code 0} = unlimited). */
+    public AgentBuilder<T> withReActMaxIterations(int maxIterations) {
+        this.reActMaxIterations = maxIterations;
+        return this;
+    }
+
+    /** Sets the transcript token budget per round. */
+    public AgentBuilder<T> withContextMaxTokens(int maxTokens) {
+        this.contextMaxTokens = maxTokens;
+        return this;
+    }
+
+    /** Registers {@code @Tool} methods from plain objects; no agent subclassing needed. */
+    public AgentBuilder<T> withToolObjects(Object... toolObjects) {
+        if (toolObjects != null) {
+            for (Object o : toolObjects) {
+                if (o != null) this.toolObjects.add(o);
+            }
         }
+        return this;
+    }
+
+    /** Adds a guardrail (opt-in; nothing is installed by default). */
+    public AgentBuilder<T> withGuardrail(Guardrail guardrail) {
+        if (guardrail != null) this.guardrails.add(guardrail);
+        return this;
+    }
+
+    /** Adds a lifecycle hook. */
+    public AgentBuilder<T> withHook(AgentHook hook) {
+        if (hook != null) this.hooks.add(hook);
+        return this;
+    }
+
+    /** Sets the {@link CurrentSession} holder (needed for non-CDI runtimes). */
+    public AgentBuilder<T> withCurrentSession(CurrentSession currentSession) {
+        this.currentSession = currentSession;
+        return this;
+    }
+
+    /**
+     * Uses an externally built {@link QuadToolRegistry} instead of creating one.
+     *
+     * <p>Intended for non-CDI runtimes that assemble tools from a catalog (for example the
+     * standalone worker). The registry's own {@code registerFromAgent} is still applied, so
+     * do not pre-register the agent's own tools into it.</p>
+     */
+    public AgentBuilder<T> withToolRegistry(QuadToolRegistry toolRegistry) {
+        this.toolRegistry = toolRegistry;
+        return this;
+    }
+
+    /**
+     * Applies a canonical {@link AgentConfig}. Explicit builder calls made afterwards win.
+     */
+    public AgentBuilder<T> withConfig(AgentConfig config) {
+        if (config == null) return this;
+        if (config.model() != null) this.model = config.model();
+        if (config.modelFromEnv()) this.llmFromEnv = true;
+        if (config.systemPrompt() != null) this.systemPrompt = config.systemPrompt();
+        if (config.userMessageTemplate() != null) this.userMessageTemplate = config.userMessageTemplate();
+        if (config.cachePrefix() != null) this.cachePrefix = config.cachePrefix();
+        if (config.temperature() != null || config.maxOutputTokens() != null) {
+            this.chatParameters = config.toChatParameters();
+        }
+        if (config.maxReActIterations() != null) this.reActMaxIterations = config.maxReActIterations();
+        if (config.contextMaxTokens() != null) this.contextMaxTokens = config.contextMaxTokens();
+        if (config.structuredOutput() != null) this.structuredOutputConfig = config.structuredOutput();
+        if (config.allowedTools() != null && !config.allowedTools().isEmpty()) this.toolNames = config.allowedTools();
+        if (config.skillDirs() != null) this.skillDirs.addAll(config.skillDirs());
+        if (config.initialSkills() != null) this.initialSkills = config.initialSkills();
+        this.skillSearchEnabled = config.skillSearchEnabled() || this.skillSearchEnabled;
+        if (config.workspace() != null) this.workspace = config.workspace();
         return this;
     }
     
@@ -102,22 +234,8 @@ public class AgentBuilder<T extends Agent> {
         return this;
     }
     
-    /** Applies standard defaults (logging, guards). */
+    /** Applies the standard defaults: logging and the built-in PII guardrail. */
     public AgentBuilder<T> withDefaults() {
-        withDefaults = true;
-        withLogging = true;
-        return this;
-    }
-    
-    /** Creates a development profile agent with mocks and in-memory tools. */
-    public AgentBuilder<T> withDevProfile() {
-        withDefaults = true;
-        withLogging = true;
-        return this;
-    }
-    
-    /** Creates a production profile agent with full features enabled. */
-    public AgentBuilder<T> withProdProfile() {
         withDefaults = true;
         withLogging = true;
         return this;
@@ -204,22 +322,26 @@ public class AgentBuilder<T extends Agent> {
                 throw new RuntimeException("Failed to create agent instance", e);
             }
         }
-        
+
+        if (model != null) {
+            agent.setLlm(model);
+        } else if (llmFromEnv && agent.getLlm() == null) {
+            agent.setLlm(ModelFactory.createOpenAiFromEnv());
+        }
+
         if (toolRegistry == null) {
             toolRegistry = new QuadToolRegistry(new ToolArgsMapper(new ObjectMapper()));
         }
         
         // Register tools from agent
         toolRegistry.registerFromAgent(agent);
+        // ... and from plain tool objects (no subclassing required)
+        for (Object toolObject : toolObjects) {
+            toolRegistry.registerFromObject(toolObject);
+        }
         
         // Filter to specific tool names if configured
         if (toolNames != null && !toolNames.isEmpty()) {
-            // Keep only the configured tools
-            var allTools = toolRegistry.getAll();
-            var filteredTools = allTools.stream()
-                .filter(tm -> toolNames.contains(tm.spec().name()))
-                .toList();
-            // Clear and re-register only filtered tools
             toolRegistry = toolRegistry.withOnly(toolNames);
         }
         
@@ -243,12 +365,25 @@ public class AgentBuilder<T extends Agent> {
         agent.setToolRegistry(toolRegistry);
         agent.setEventPublisher(eventPublisher);
         agent.setHookRegistry(hookRegistry);
+        if (workspace != null) {
+            agent.setWorkspaceResolver(new WorkspaceResolver().baseWorkspace(workspace));
+        }
+        if (currentSession != null) {
+            agent.setCurrentSession(currentSession);
+        }
 
         // ToolExecutor (idempotency + saga + hooks + events) if not already set
         if (agent.getToolExecutor() == null) {
             agent.setToolExecutor(new ToolExecutor(
                 new IdempotencyStore(), new OTelAgentTracer(), eventPublisher, hookRegistry));
         }
+
+        // Per-agent configuration (all optional)
+        if (systemPrompt != null) agent.setSystemPrompt(systemPrompt);
+        if (cachePrefix != null) agent.setCachePrefix(cachePrefix);
+        if (userMessageTemplate != null) agent.setUserMessageTemplate(userMessageTemplate);
+        if (reActMaxIterations != null) agent.setReActMaxIterations(reActMaxIterations);
+        if (contextMaxTokens != null) agent.setContextMaxTokens(contextMaxTokens);
 
         if (structuredOutputConfig != null) {
             agent.setStructuredOutputConfig(structuredOutputConfig);
@@ -263,9 +398,17 @@ public class AgentBuilder<T extends Agent> {
             eventPublisher.addEventListener(new LoggingHook()::onEvent);
         }
 
+        // Opt-in guardrails and hooks
+        for (Guardrail guardrail : guardrails) {
+            agent.addHook(new GuardrailPlugin(List.of(guardrail), List.of()));
+        }
+        for (AgentHook hook : hooks) {
+            agent.addHook(hook);
+        }
+
         // Register skill plugins if skill directories configured
         if (!skillDirs.isEmpty()) {
-            registerSkillPlugins();
+            AgentAssembler.registerSkills(agent, toolRegistry, skillDirs, initialSkills, skillSearchEnabled);
         }
 
         // Apply defaults if requested
@@ -283,44 +426,5 @@ public class AgentBuilder<T extends Agent> {
                 : GuardrailResult.ok();
 
         agent.addHook(new GuardrailPlugin(List.of(noPii), List.of()));
-    }
-
-    private void registerSkillPlugins() {
-        var capabilityRegistry = CapabilityRegistry.builder()
-            .skillDirs(skillDirs.toArray(new Path[0]))
-            .build();
-        var allSkills = capabilityRegistry.discoverAllSkills();
-        var skillMap = new HashMap<String, Skill>();
-        for (var s : allSkills) skillMap.put(s.name(), s);
-
-        // 1. AgentSkillsPlugin — phase 1: injects ONLY the skill catalog (name + description)
-        var skillsPlugin = new AgentSkillsPlugin(allSkills, initialSkills, skillSearchEnabled);
-        agent.addHook(skillsPlugin);
-
-        // 2. load_skill tool — phase 2: just-in-time loading of the full instructions
-        var loadSkillTool = new SkillLoadTool(skillMap);
-        toolRegistry.register(loadSkillTool.spec().name(), loadSkillTool);
-
-        // 3. SkillSearchTool — Discovery only (point to load_skill for full instructions)
-        if (skillSearchEnabled) {
-            var skillSearchTool = new SkillSearchTool(skillMap, null);
-            toolRegistry.register(skillSearchTool.spec().name(), skillSearchTool);
-        }
-
-        // 4. ToolActivatorTool — dynamische Tool-Registrierung
-        var toolActivator = new ToolActivatorTool(toolRegistry);
-        toolRegistry.register(toolActivator.spec().name(), toolActivator);
-
-        // 5. SkillActivationHook — Tool-Aktivierung erkennt Skill-Wechsel
-        var toolToSkill = new HashMap<String, Skill>();
-        for (var s : allSkills) {
-            if (s.declaredTools() != null) {
-                for (var tool : s.declaredTools()) {
-                    toolToSkill.put(tool, s);
-                }
-            }
-        }
-        var activationHook = new SkillActivationHook(toolToSkill, null);
-        agent.addHook(activationHook);
     }
 }

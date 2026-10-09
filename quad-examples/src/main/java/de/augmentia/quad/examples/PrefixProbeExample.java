@@ -1,6 +1,7 @@
 package de.augmentia.quad.examples;
 
 import de.augmentia.quad.core.agent.Agent;
+import de.augmentia.quad.core.agent.QuadAgent;
 import de.augmentia.quad.core.agent.CachePrefixGuard;
 import de.augmentia.quad.core.config.ModelFactory;
 import de.augmentia.quad.core.tool.QuadToolRegistry;

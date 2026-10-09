@@ -91,6 +91,21 @@ public class QuadToolRegistry {
         }
     }
 
+    /**
+     * Registers all {@code @Tool} methods of an arbitrary object under their method names.
+     *
+     * <p>Lets callers attach tools without subclassing {@link Agent}, e.g. via
+     * {@code AgentBuilder.withToolObjects(...)}. A {@code null} bean is ignored.
+     */
+    public void registerFromObject(Object bean) {
+        if (bean == null) return;
+        for (Method m : bean.getClass().getDeclaredMethods()) {
+            if (m.isAnnotationPresent(Tool.class)) {
+                register(m.getName(), new ReflectiveToolMethod(m, bean, argsMapper));
+            }
+        }
+    }
+
     public List<ToolMethod> getStaticToolsForAgent(Agent agent) {
         List<String> names = agentTools.get(agent.getClass());
         if (names == null) return List.of();

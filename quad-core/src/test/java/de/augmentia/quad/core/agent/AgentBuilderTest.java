@@ -1,5 +1,6 @@
 package de.augmentia.quad.core.agent;
 
+import de.augmentia.quad.core.annotation.Tool;
 import de.augmentia.quad.core.session.AgentSessionState;
 import org.junit.jupiter.api.Test;
 
@@ -14,6 +15,13 @@ class AgentBuilderTest {
         @Override
         protected AgentSessionState newSessionState() {
             return new AgentSessionState();
+        }
+    }
+
+    static class Tools {
+        @Tool(description = "ping")
+        public String ping(String message) {
+            return "pong " + message;
         }
     }
 
@@ -47,21 +55,14 @@ class AgentBuilderTest {
     }
 
     @Test
-    void shouldCreateDevProfileAgent() {
-        Agent agent = AgentBuilder.create(TestAgent.class)
-            .withDevProfile()
+    void shouldBuildDefaultAgent() {
+        Agent agent = AgentBuilder.defaultAgent()
             .build();
 
         assertNotNull(agent);
-    }
-
-    @Test
-    void shouldCreateProdProfileAgent() {
-        Agent agent = AgentBuilder.create(TestAgent.class)
-            .withProdProfile()
-            .build();
-
-        assertNotNull(agent);
+        assertNotNull(agent.getToolRegistry());
+        assertNotNull(agent.getEventPublisher());
+        assertNotNull(agent.getHookRegistry());
     }
 
     @Test
@@ -81,5 +82,39 @@ class AgentBuilderTest {
             .build();
 
         assertNotNull(agent.getToolRegistry());
+    }
+
+    @Test
+    void shouldBuildFromExistingInstance() {
+        TestAgent instance = new TestAgent();
+        Agent agent = AgentBuilder.of(instance).build();
+
+        assertSame(instance, agent);
+        assertNotNull(agent.getToolRegistry());
+    }
+
+    @Test
+    void shouldApplyAgentConfig() {
+        AgentConfig cfg = AgentConfig.builder()
+            .systemPrompt("sys")
+            .maxReActIterations(3)
+            .contextMaxTokens(500)
+            .build();
+
+        Agent agent = AgentBuilder.create(TestAgent.class)
+            .withConfig(cfg)
+            .build();
+
+        assertEquals("sys", agent.getSystemPrompt());
+        assertEquals(500, agent.getContextMaxTokens());
+    }
+
+    @Test
+    void shouldRegisterToolObjects() {
+        Agent agent = AgentBuilder.defaultAgent()
+            .withToolObjects(new Tools())
+            .build();
+
+        assertNotNull(agent.getToolRegistry().get("ping"));
     }
 }

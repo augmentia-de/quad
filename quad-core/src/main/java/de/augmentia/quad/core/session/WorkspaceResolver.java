@@ -20,6 +20,15 @@ public class WorkspaceResolver {
     @ConfigProperty(name = "quad.workspace", defaultValue = ".")
     Path baseWorkspace;
 
+    /**
+     * Fluent override of the workspace base, for programmatic (non-CDI) use.
+     * A {@code null} base falls back to {@link #WORKSPACE_BASE}.
+     */
+    public WorkspaceResolver baseWorkspace(Path base) {
+        this.baseWorkspace = base;
+        return this;
+    }
+
     public static String resolve(String sessionId) {
         return WORKSPACE_BASE + "/" + sessionId;
     }

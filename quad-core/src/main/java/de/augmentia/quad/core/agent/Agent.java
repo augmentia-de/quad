@@ -1,5 +1,6 @@
 package de.augmentia.quad.core.agent;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import de.augmentia.quad.core.capability.skill.SkillRegistry;
 import de.augmentia.quad.core.capability.prompt.ToolListRenderer;
 import de.augmentia.quad.core.capability.prompt.SkillListRenderer;
@@ -23,6 +24,7 @@ import de.augmentia.quad.core.session.WorkspaceResolver;
 import de.augmentia.quad.core.session.memory.ConversationManager;
 import de.augmentia.quad.core.session.memory.SummarizingSlidingWindowConversationManager;
 import de.augmentia.quad.core.tool.QuadToolRegistry;
+import de.augmentia.quad.core.tool.ToolArgsMapper;
 import de.augmentia.quad.core.tool.ToolMethod;
 import de.augmentia.quad.core.tool.SubAgentTool;
 import de.augmentia.quad.core.tool.DynamicSubAgentTool;
@@ -304,6 +306,26 @@ public abstract class Agent {
         this.llm = llm;
     }
 
+    public ChatModel getLlm() {
+        return llm;
+    }
+
+    public void setWorkspaceResolver(WorkspaceResolver workspaceResolver) {
+        this.workspaceResolver = workspaceResolver;
+    }
+
+    public void setCurrentSession(CurrentSession currentSession) {
+        this.currentSession = currentSession;
+    }
+
+    public void setSkillRegistry(SkillRegistry skillRegistry) {
+        this.skillRegistry = skillRegistry;
+    }
+
+    public void setSandbox(SandboxClient sandbox) {
+        this.sandbox = sandbox;
+    }
+
     public void setStateFactory(SessionStateFactory factory) { this.stateFactory = factory; }
 
     public void setToolRegistry(QuadToolRegistry toolRegistry) {
@@ -443,20 +465,22 @@ public abstract class Agent {
 
     public String run(String prompt, AgentSessionState state) {
         sessionFacade().bindSession(state);
-        if (llm == null) return "[LLM not configured]";
-        AgentRuntime runtime = new AgentRuntime(llm, toolRegistry, null, reactMaxIterations,
-                hookRegistry, eventPublisher, tracer, toolExecutor, channelManager);
-        // Without this limitContext goes into the void: the manager is otherwise null and
-        // the transcript grows untrimmed until the round limit. See setConversationManager.
-        runtime.withConversationManager(conversationManager());
-        runtime.setStructuredOutputConfig(structuredOutputConfig);
-        return runtime.run(this, prompt, state);
+        requireLlm();
+        return createRuntime().run(this, prompt, state);
     }
 
+    /**
+     * @deprecated use {@link #run(String)} — kept as a compatibility alias.
+     */
+    @Deprecated
     public final String execute(String prompt) {
         return run(prompt);
     }
 
+    /**
+     * @deprecated use {@link #run(String, AgentSessionState)} — kept as a compatibility alias.
+     */
+    @Deprecated
     public String execute(String prompt, AgentSessionState state) {
         return run(prompt, state);
     }
@@ -467,38 +491,74 @@ public abstract class Agent {
 
     public AgentResult executeStructured(String prompt, AgentSessionState state) {
         sessionFacade().bindSession(state);
-        if (llm == null) return new AgentResult("[LLM not configured]", null, 0);
-        AgentRuntime runtime = new AgentRuntime(llm, toolRegistry, null, reactMaxIterations,
-                hookRegistry, eventPublisher, tracer, toolExecutor, channelManager);
-        // Without this limitContext goes into the void: the manager is otherwise null and
-        // the transcript grows untrimmed until the round limit. See setConversationManager.
-        runtime.withConversationManager(conversationManager());
-        runtime.setStructuredOutputConfig(structuredOutputConfig);
-        return runtime.runStructured(this, prompt, state);
+        requireLlm();
+        return createRuntime().runStructured(this, prompt, state);
     }
 
     public AgentResult executeStructured(String systemMessage, String userMessage, AgentSessionState state) {
         sessionFacade().bindSession(state);
-        if (llm == null) return new AgentResult("[LLM not configured]", null, 0);
-        AgentRuntime runtime = new AgentRuntime(llm, toolRegistry, null, reactMaxIterations,
-                hookRegistry, eventPublisher, tracer, toolExecutor, channelManager);
-        // Without this limitContext goes into the void: the manager is otherwise null and
-        // the transcript grows untrimmed until the round limit. See setConversationManager.
-        runtime.withConversationManager(conversationManager());
-        runtime.setStructuredOutputConfig(structuredOutputConfig);
-        return runtime.runStructured(this, systemMessage, userMessage, state);
+        requireLlm();
+        return createRuntime().runStructured(this, systemMessage, userMessage, state);
     }
 
     public String executeBash(String script) {
         return sandbox != null ? sandbox.run(script) : "sandbox error";
     }
 
+    /**
+     * @deprecated use {@link #run(String)} — kept as a compatibility alias.
+     */
+    @Deprecated
     public String executeReAct(String prompt) {
-        return executeReAct(prompt, stateFactory != null ? stateFactory.create(this) : newSessionState());
+        return run(prompt);
     }
 
+    /**
+     * @deprecated use {@link #run(String, AgentSessionState)} — kept as a compatibility alias.
+     */
+    @Deprecated
     public String executeReAct(String prompt, AgentSessionState state) {
         return run(prompt, state);
+    }
+
+    /**
+     * Fails fast when no model is configured, instead of silently returning a marker
+     * string that a caller can easily overlook.
+     */
+    private void requireLlm() {
+        if (llm == null) {
+            throw new IllegalStateException(
+                    "No ChatModel configured. Call setLlm(...)/initLlm(...), or build the agent via "
+                    + "AgentBuilder/QuadAgent.create()/Agents.simple().");
+        }
+    }
+
+    /**
+     * Builds the runtime for one run. Single place that wires the transcript bound and
+     * structured-output config, so the three entry points cannot drift apart.
+     *
+     * <p>Without {@code withConversationManager(...)} limitContext goes into the void: the
+     * manager is otherwise null and the transcript grows untrimmed until the round limit.
+     * See {@link #setConversationManager}.
+     */
+    private AgentRuntime createRuntime() {
+        ensureToolRegistry();
+        AgentRuntime runtime = new AgentRuntime(llm, toolRegistry, null, reactMaxIterations,
+                hookRegistry, eventPublisher, tracer, toolExecutor, channelManager);
+        runtime.withConversationManager(conversationManager());
+        runtime.setStructuredOutputConfig(structuredOutputConfig);
+        return runtime;
+    }
+
+    /**
+     * Registers this agent's own {@code @Tool} methods when no registry was injected or set
+     * programmatically. Without this a bare {@code new MyAgent()} silently loses all tools.
+     */
+    private void ensureToolRegistry() {
+        if (toolRegistry == null) {
+            toolRegistry = new QuadToolRegistry(new ToolArgsMapper(new ObjectMapper()));
+            toolRegistry.registerFromAgent(this);
+        }
     }
 
     // ── Prompt assembly delegation ──
