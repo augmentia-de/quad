@@ -116,6 +116,18 @@ public class ModelFactory {
         return p;
     }
 
+    /**
+     * Applies optional custom headers ({@link ModelHeaders#fromEnv()}) to a model builder.
+     * No-op unless {@code QUAD_LLM_USER_AGENT}/{@code QUAD_LLM_SESSION_ID}/{@code QUAD_LLM_HEADERS}
+     * are configured, so other providers are unaffected.
+     */
+    private static void applyHeaders(java.util.function.Consumer<Map<String, String>> setter) {
+        Map<String, String> headers = ModelHeaders.fromEnv();
+        if (!headers.isEmpty()) {
+            setter.accept(headers);
+        }
+    }
+
     // ── Provider Implementations ──
 
     /** ModelProvider for OpenAI. */
@@ -139,6 +151,7 @@ public class ModelFactory {
             builder.maxRetries(0);
             if (config.logRequests() != null) builder.logRequests(config.logRequests());
             if (config.logResponses() != null) builder.logResponses(config.logResponses());
+            applyHeaders(h -> builder.customHeaders(h));
             return RetryingChatModel.withDefaults(builder.build());
         }
 
@@ -158,6 +171,7 @@ public class ModelFactory {
             }
             if (config.logRequests() != null) builder.logRequests(config.logRequests());
             if (config.logResponses() != null) builder.logResponses(config.logResponses());
+            applyHeaders(h -> builder.customHeaders(h));
             return builder.build();
         }
     }
@@ -180,6 +194,7 @@ public class ModelFactory {
             builder.maxRetries(0);
             if (config.logRequests() != null) builder.logRequests(config.logRequests());
             if (config.logResponses() != null) builder.logResponses(config.logResponses());
+            applyHeaders(h -> builder.customHeaders(h));
             return RetryingChatModel.withDefaults(builder.build());
         }
 
@@ -197,6 +212,7 @@ public class ModelFactory {
             }
             if (config.logRequests() != null) builder.logRequests(config.logRequests());
             if (config.logResponses() != null) builder.logResponses(config.logResponses());
+            applyHeaders(h -> builder.customHeaders(h));
             return builder.build();
         }
     }
