@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { fetchProvenance } from '../services/api'
 import type { ProvenanceEntry } from '../services/types'
 
@@ -9,7 +9,7 @@ export function ProvenanceView() {
   const [count, setCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       const result = await fetchProvenance(sessionId || undefined)
@@ -17,13 +17,13 @@ export function ProvenanceView() {
       setCount(result.count)
     } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)) }
     finally { setLoading(false) }
-  }
+  }, [sessionId])
 
-  useEffect(() => { load() }, [sessionId])
+  useEffect(() => { load() }, [load])
 
   const handleReset = async () => {
     if (!sessionId) return
-    try { await fetchProvenance(undefined); /* reset already done */ load() } catch (_e) {}
+    try { await fetchProvenance(undefined); /* reset already done */ load() } catch {}
   }
 
   return (

@@ -363,6 +363,57 @@ public class AgentController {
         }
     }
 
+    /**
+     * Promotes the internal step agents referenced by a workflow (active=false) to normal,
+     * editable agents (active=true). Idempotent.
+     *
+     * <p>This is the "make it editable" conversion for dynamically generated workflows,
+     * whose per-step agents are hidden from the classic agent list by default. Only the
+     * agent's identity/prompt/tools are touched; node-level transport settings
+     * (userMessageTemplate, jsonOutputSchema, data) stay in the workflow node config and
+     * remain the execution source of truth.</p>
+     */
+    @POST @Path("/workflows/{id}/materialize")
+    public Response materializeWorkflowAgents(@PathParam("id") String id) {
+        var workflow = state.workflows().get(id);
+        if (workflow == null) {
+            return Response.status(404).entity(Map.of("error", "Workflow not found")).build();
+        }
+        var res = WorkflowAgentMaterializer.activate(workflow, state);
+        auditStore.add("audit-" + UUID.randomUUID().toString().substring(0, 8),
+            Instant.now().toString(), id, "Workflow Agents Materialized",
+            res.activated() + " activated, " + res.mirrored() + " mirrored ("
+                + res.agentIds().size() + " referenced)");
+        return Response.ok(Map.of(
+            "workflowId", id,
+            "activated", res.activated(),
+            "deactivated", res.deactivated(),
+            "mirrored", res.mirrored(),
+            "referenced", res.agentIds().size(),
+            "agentIds", res.agentIds())).build();
+    }
+
+    /**
+     * Reverse of {@link #materializeWorkflowAgents}: hides the workflow's internal step
+     * agents again (active=false). Idempotent.
+     */
+    @POST @Path("/workflows/{id}/dematerialize")
+    public Response dematerializeWorkflowAgents(@PathParam("id") String id) {
+        var workflow = state.workflows().get(id);
+        if (workflow == null) {
+            return Response.status(404).entity(Map.of("error", "Workflow not found")).build();
+        }
+        var res = WorkflowAgentMaterializer.deactivate(workflow, state);
+        auditStore.add("audit-" + UUID.randomUUID().toString().substring(0, 8),
+            Instant.now().toString(), id, "Workflow Agents De-materialized",
+            res.deactivated() + " deactivated (" + res.agentIds().size() + " referenced)");
+        return Response.ok(Map.of(
+            "workflowId", id,
+            "deactivated", res.deactivated(),
+            "referenced", res.agentIds().size(),
+            "agentIds", res.agentIds())).build();
+    }
+
     @POST @Path("/workflows/{id}/duplicate")
     public Response duplicateWorkflow(@PathParam("id") String id) {
         var existing = state.workflows().get(id);

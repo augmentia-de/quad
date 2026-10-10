@@ -1,6 +1,7 @@
 package de.augmentia.quad.quarkus.workflow;
 
 import de.augmentia.quad.quarkus.ui.SharedState;
+import de.augmentia.quad.quarkus.ui.WorkflowAgentMaterializer;
 import de.augmentia.quad.quarkus.persistence.AuditStore;
 import de.augmentia.quad.contract.ApiDtos;
 import de.augmentia.quad.quarkus.persistence.RunStore;
@@ -218,6 +219,9 @@ public class DynamicWorkflowResource {
             now, now);
         state.putWorkflow(workflow);
         state.incMetrics();
+        // Make the generated step agents visible/editable right away (idempotent; mirrors
+        // the node schema/template into the agent definitions).
+        WorkflowAgentMaterializer.activate(workflow, state);
         auditStore.add("audit-" + UUID.randomUUID().toString().substring(0, 8),
             Instant.now().toString(), id, "Create", "Dynamic workflow saved: " + workflow.name);
         return Response.status(201).entity(Map.of("id", id)).build();

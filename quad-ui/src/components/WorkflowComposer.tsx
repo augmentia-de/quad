@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useWorkflow } from '../contexts/WorkflowContext'
-import { createWorkflow, executeWorkflow, fetchAgents, fetchMessagingChannels, fetchRun, fetchWorkflow, fetchWorkflows, updateWorkflow } from '../services/api'
+import { createWorkflow, executeWorkflow, fetchAgents, fetchMessagingChannels, fetchRun, fetchWorkflow, fetchWorkflows, materializeWorkflowAgents, dematerializeWorkflowAgents, updateWorkflow } from '../services/api'
 import * as kafkaApi from '../services/kafkaApi'
 import { WorkflowList } from './WorkflowList'
 import { JsonSchemaPopup } from './JsonSchemaPopup'
@@ -555,6 +555,7 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
   const [prefixCaching, setPrefixCaching] = useState(false)
   const [running, setRunning] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [materializing, setMaterializing] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [lastRun, setLastRun] = useState<WorkflowRun | null>(null)
   const [runError, setRunError] = useState<string | null>(null)
@@ -728,20 +729,26 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
             : 'running' as const
         }
         setNodeStatuses(statuses)
+        const runStatus: 'running' | 'completed' | 'failed' =
+          status.status === 'COMPLETED' ? 'completed'
+            : status.status === 'FAILED' ? 'failed'
+            : 'running'
         setLastRun({
           runId: executionId,
           workflowId: status.workflowName,
-          status: status.status,
+          status: runStatus,
           startedAt: status.startedAt,
-          finishedAt: status.finishedAt ?? undefined,
+          finishedAt: status.finishedAt ?? null,
           durationMs: status.finishedAt ? Date.parse(status.finishedAt) - Date.parse(status.startedAt) : 0,
           nodeResults: checkpoints.map(cp => ({
             nodeId: cp.stepId,
             type: cp.agentType || 'step',
             title: cp.stepId,
             status: statuses[cp.stepId] || 'pending',
+            output: '',
+            input: '',
           })),
-          initialData: {},
+          initialData: '',
         })
         if (status.status === 'COMPLETED' || status.status === 'FAILED' || status.status === 'CANCELLED') {
           finished = true
@@ -780,6 +787,34 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
       state.nodes.forEach(node => updateNode(node.id, { status: 'failed' }))
       setRunError(String(error))
       setRunning(false)
+    }
+  }
+
+  const handleMaterialize = async () => {
+    if (materializing) return
+    setMaterializing(true)
+    setSaveMessage(null)
+    try {
+      const res = await materializeWorkflowAgents(state.id)
+      setSaveMessage(`Agents aktiviert: ${res.activated} neu, ${res.referenced} referenziert — sichtbar im Agents-Tab.`)
+    } catch (err) {
+      setSaveMessage(`Fehler beim Aktivieren: ${String(err)}`)
+    } finally {
+      setMaterializing(false)
+    }
+  }
+
+  const handleDematerialize = async () => {
+    if (materializing) return
+    setMaterializing(true)
+    setSaveMessage(null)
+    try {
+      const res = await dematerializeWorkflowAgents(state.id)
+      setSaveMessage(`Agents verborgen: ${res.deactivated} deaktiviert, ${res.referenced} referenziert.`)
+    } catch (err) {
+      setSaveMessage(`Fehler beim Verbergen: ${String(err)}`)
+    } finally {
+      setMaterializing(false)
     }
   }
 
@@ -901,12 +936,48 @@ export function WorkflowComposer({ onTabChange }: WorkflowComposerProps) {
           <option value="quarkus">🟣 Quarkus Backend</option>
           <option value="kafka">🟢 Kafka Orchestrator</option>
         </select>
+        {backend === 'kafka' && (
+          <select
+            aria-label="Kafka workflow definitions"
+            title="Workflow definitions already persisted in the Kafka orchestrator"
+            value=""
+            onChange={() => undefined}
+            style={{ minWidth: '12em' }}
+          >
+            <option value="">
+              {kafkaWorkflows.length === 0
+                ? 'No Kafka workflows'
+                : `${kafkaWorkflows.length} Kafka workflow${kafkaWorkflows.length === 1 ? '' : 's'}`}
+            </option>
+            {kafkaWorkflows.map(w => (
+              <option key={w.id} value={w.id} disabled>
+                {w.name} v{w.version}{w.isActive ? ' (active)' : ''}
+              </option>
+            ))}
+          </select>
+        )}
         <span className="toolbar-separator" />
         <button type="button" onClick={handleSave} disabled={state.nodes.length === 0 || saving}>
           {saving ? 'Saving...' : isSaved ? 'Save (Update)' : 'Save'}
         </button>
         <button type="button" onClick={handleExecute} disabled={state.nodes.length === 0 || running}>
           {running ? 'Running...' : 'Execute'}
+        </button>
+        <button
+          type="button"
+          onClick={handleMaterialize}
+          disabled={!isSaved || materializing}
+          title="Aktiviert die internen Step-Agenten (active=false), damit sie im Agents-Tab sichtbar und bearbeitbar sind."
+        >
+          {materializing ? 'Activating…' : 'Agents editierbar machen'}
+        </button>
+        <button
+          type="button"
+          onClick={handleDematerialize}
+          disabled={!isSaved || materializing}
+          title="Verbirgt die internen Step-Agenten wieder (active=false)."
+        >
+          Agents verbergen
         </button>
       </div>
 

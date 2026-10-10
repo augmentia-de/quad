@@ -18,7 +18,7 @@ import type { AgentDefinition, NodePosition, WorkflowEdge, WorkflowNode } from '
 
 const NODE_W = 180, NODE_H = 80
 
-type NodeData = WorkflowNode & { agentName: string }
+type NodeData = WorkflowNode & { agentName: string } & Record<string, unknown>
 
 function defaultPosition(index: number): NodePosition {
   return { x: (index % 3) * (NODE_W + 60) + 40, y: Math.floor(index / 3) * (NODE_H + 40) + 20 }
@@ -236,7 +236,7 @@ export function ReactFlowCanvas({
     ])
   }, [ctxNodes, ctxEdges, loopBodySinks, agents, selectedNodeId, setRfNodes, setRfEdges])
 
-  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+  const handleNodesChange = useCallback((changes: NodeChange<Node<NodeData>>[]) => {
     onNodesChangeRaw(changes)
     for (const c of changes) {
       if (c.type === 'position' && c.dragging) {
@@ -250,11 +250,13 @@ export function ReactFlowCanvas({
 
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
     const realIds = new Set(ctxEdges.map(e => e.id))
-    const filtered = changes.filter(c => realIds.has(c.id))
+    const idOf = (c: EdgeChange): string | undefined => (c as { id?: string }).id
+    const filtered = changes.filter(c => { const id = idOf(c); return id != null && realIds.has(id) })
     onEdgesChangeRaw(filtered)
     for (const c of changes) {
-      if (c.type === 'remove' && realIds.has(c.id)) {
-        onRemoveEdge(c.id)
+      const id = idOf(c)
+      if (c.type === 'remove' && id != null && realIds.has(id)) {
+        onRemoveEdge(id)
       }
     }
   }, [ctxEdges, onEdgesChangeRaw, onRemoveEdge])

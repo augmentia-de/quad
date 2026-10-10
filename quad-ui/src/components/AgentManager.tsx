@@ -16,10 +16,11 @@ export function AgentManager() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [showInactive, setShowInactive] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    fetchAgents()
+    fetchAgents(showInactive)
       .then(data => { if (!cancelled) setAllAgents(data) })
       .catch(err => { if (!cancelled) setError(String(err)) })
     fetchTools()
@@ -31,7 +32,7 @@ export function AgentManager() {
       .then(skills => { if (!cancelled) setSkillOptions(skills) })
       .catch(() => { if (!cancelled) setSkillOptions([]) })
     return () => { cancelled = true }
-  }, [])
+  }, [showInactive])
 
   const filteredAgents = allAgents.filter(a => {
     const matchesSearch = !search
@@ -136,6 +137,14 @@ export function AgentManager() {
             <option key={c} value={c}>{c === 'all' ? 'Alle Kategorien' : c}</option>
           ))}
         </select>
+        <label className="agent-filter-toggle" title="Zeigt intern generierte Workflow-Step-Agenten (active=false) zur Bearbeitung.">
+          <input
+            type="checkbox"
+            checked={showInactive}
+            onChange={e => setShowInactive(e.target.checked)}
+          />
+          {' '}Interne Step-Agenten
+        </label>
       </div>
 
       {showEditor && editingAgent && (
@@ -174,6 +183,9 @@ export function AgentManager() {
                     <span className="model">{agent.model}</span>
                     <span className="tools">{agent.tools.length} tools</span>
                     <span className="skills">{(agent.skills ?? []).length} skills</span>
+                    {agent.active === false && (
+                      <span className="badge badge-internal" title="Intern generierter Workflow-Step-Agent (nicht in der Standardliste)">internal</span>
+                    )}
                   </div>
                   <div className="guardrail-badges">
                     {(agent.guardrailsInput ?? []).map(g => (

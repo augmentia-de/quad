@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { fetchAutomations, createAutomation, updateAutomation, deleteAutomation, markSeen, getAutomation, prepareManualRun, finalizeManualRun } from '../services/api'
-import type { ScheduledTask, TaskRun, ScheduleDefinition } from '../services/types'
+import { fetchAutomations, createAutomation, deleteAutomation, markSeen, getAutomation, prepareManualRun } from '../services/api'
+import type { ScheduledTask, TaskRun } from '../services/types'
 
 function statusBadge(status: string) {
   const cls = status === 'ok' ? 'success' : status === 'running' ? 'running' : status === 'error' ? 'failed' : ''
@@ -37,7 +37,7 @@ export function Automation() {
 
   const showDetail = async (task: ScheduledTask) => {
     setDetailTask(task)
-    try { const d = await getAutomation(task.id); setRuns(d.runs) } catch (_e) { setRuns([]) }
+    try { const d = await getAutomation(task.id); setRuns(d.runs) } catch { setRuns([]) }
   }
 
   const hideDetail = () => { setDetailTask(null); setRuns([]) }
@@ -54,18 +54,18 @@ export function Automation() {
 
   const handleDelete = async (id: string) => {
     if (!confirm(`Delete automation "${id}"?`)) return
-    try { await deleteAutomation(id); load(); hideDetail() } catch (_e) {}
+    try { await deleteAutomation(id); load(); hideDetail() } catch {}
   }
 
   const handleMarkSeen = async (id: string) => {
-    try { await markSeen(id); load() } catch (_e) {}
+    try { await markSeen(id); load() } catch {}
   }
 
   const runTask = async (task: ScheduledTask) => {
     try {
       const pr = await prepareManualRun(task.id)
       alert(`Run prepared. Run-ID: ${pr.run_id}\nRun it first in the Playground, then confirm via finalize.`)
-    } catch (_e) {}
+    } catch {}
   }
 
   return (

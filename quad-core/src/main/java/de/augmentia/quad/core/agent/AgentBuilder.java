@@ -37,6 +37,8 @@ public class AgentBuilder<T extends Agent> {
     private QuadToolRegistry toolRegistry;
     private AgentEventPublisher eventPublisher;
     private HookRegistry hookRegistry;
+    private ToolExecutor toolExecutor;
+    private WorkspaceResolver workspaceResolver;
     
     private boolean withLogging = false;
     private boolean withDefaults = false;
@@ -183,6 +185,30 @@ public class AgentBuilder<T extends Agent> {
      */
     public AgentBuilder<T> withToolRegistry(QuadToolRegistry toolRegistry) {
         this.toolRegistry = toolRegistry;
+        return this;
+    }
+
+    /** Uses a pre-configured event publisher instead of creating a fresh one. */
+    public AgentBuilder<T> withEventPublisher(AgentEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+        return this;
+    }
+
+    /** Uses a pre-configured hook registry instead of creating a fresh one. */
+    public AgentBuilder<T> withHookRegistry(HookRegistry hookRegistry) {
+        this.hookRegistry = hookRegistry;
+        return this;
+    }
+
+    /** Uses a pre-configured {@link ToolExecutor} instead of the default one. */
+    public AgentBuilder<T> withToolExecutor(ToolExecutor toolExecutor) {
+        this.toolExecutor = toolExecutor;
+        return this;
+    }
+
+    /** Uses a pre-configured {@link WorkspaceResolver} instead of building one from a path. */
+    public AgentBuilder<T> withWorkspaceResolver(WorkspaceResolver workspaceResolver) {
+        this.workspaceResolver = workspaceResolver;
         return this;
     }
 
@@ -365,15 +391,19 @@ public class AgentBuilder<T extends Agent> {
         agent.setToolRegistry(toolRegistry);
         agent.setEventPublisher(eventPublisher);
         agent.setHookRegistry(hookRegistry);
-        if (workspace != null) {
+        if (workspaceResolver != null) {
+            agent.setWorkspaceResolver(workspaceResolver);
+        } else if (workspace != null) {
             agent.setWorkspaceResolver(new WorkspaceResolver().baseWorkspace(workspace));
         }
         if (currentSession != null) {
             agent.setCurrentSession(currentSession);
         }
 
-        // ToolExecutor (idempotency + saga + hooks + events) if not already set
-        if (agent.getToolExecutor() == null) {
+        // ToolExecutor (idempotency + saga + hooks + events): an explicit one wins
+        if (toolExecutor != null) {
+            agent.setToolExecutor(toolExecutor);
+        } else if (agent.getToolExecutor() == null) {
             agent.setToolExecutor(new ToolExecutor(
                 new IdempotencyStore(), new OTelAgentTracer(), eventPublisher, hookRegistry));
         }

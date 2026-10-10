@@ -27,7 +27,7 @@ interface AgentEditorProps {
   onDelete?: () => void
   modelOptions: string[]
   toolOptions: string[]
-  skillOptions: SkillSpec[]
+  skillOptions?: SkillSpec[]
   onSkillToggle?: (skillName: string) => void
 }
 
@@ -61,7 +61,7 @@ function GuardrailCheckboxes({
   )
 }
 
-export function AgentEditor({ agent, isNew = false, onSave, onCancel, onDelete, modelOptions, toolOptions, skillOptions }: AgentEditorProps) {
+export function AgentEditor({ agent, isNew = false, onSave, onCancel, onDelete, modelOptions, toolOptions, skillOptions = [] }: AgentEditorProps) {
   const [editedAgent, setEditedAgent] = useState(agent)
   const [hookOptions, setHookOptions] = useState(FALLBACK_HOOK_OPTIONS)
 

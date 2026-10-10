@@ -7,6 +7,7 @@ import de.augmentia.quad.quarkus.mcp.McpManagerService;
 import de.augmentia.quad.quarkus.messaging.ChannelAgentFactory;
 import de.augmentia.quad.quarkus.ui.SharedState;
 import de.augmentia.quad.quarkus.ui.UiConfig;
+import de.augmentia.quad.quarkus.ui.WorkflowAgentMaterializer;
 import de.augmentia.quad.contract.ApiDtos;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -404,8 +405,11 @@ public class WorkflowGeneratorService {
         // 1. Create + persis one dedicated (inactive) agent per generated step, so every node
         //    executes with its own system prompt / tool set (persisted immediately, active=false).
         Map<String, String> roleToAgentId = new LinkedHashMap<>();
+        Map<String, ApiDtos.AgentDefinition> stepAgents = new LinkedHashMap<>();
         for (GeneratedStep s : steps) {
-            roleToAgentId.put(s.agentRole(), createStepAgent(s));
+            ApiDtos.AgentDefinition def = newStepAgent(s);
+            roleToAgentId.put(s.agentRole(), def.id);
+            stepAgents.put(s.agentRole(), def);
         }
 
         Map<String, String> roleToNodeId = new LinkedHashMap<>();
@@ -476,16 +480,25 @@ public class WorkflowGeneratorService {
             }
         }
 
+        // Enrich each step agent with the node's transport fields (schema/template/jsonOutput)
+        // and persist exactly once — the agent editor and the workflow node stay consistent.
+        for (GeneratedStep s : steps) {
+            ApiDtos.AgentDefinition def = stepAgents.get(s.agentRole());
+            if (def == null) continue;
+            WorkflowAgentMaterializer.mirrorInto(def, configByNode.get(roleToNodeId.get(s.agentRole())));
+            state.putAgent(def);
+        }
+
         String now = Instant.now().toString();
         return new ApiDtos.WorkflowDef(id, name, nodes, edges, initialTask, now, now);
     }
 
     /**
-     * Creates and persists a dedicated agent for one generated step. The agent is stored
-     * immediately ({@code active=false}: it stays invisible in the classic agents/workflow page,
-     * but the generated workflow can reference and execute it at any time).
+     * Builds (without persisting) a dedicated agent for one generated step. The agent is
+     * created {@code active=false} (invisible in the classic agents page until materialized)
+     * and persisted once by {@link #toWorkflowDef} after its transport fields are mirrored.
      */
-    private String createStepAgent(GeneratedStep step) {
+    private ApiDtos.AgentDefinition newStepAgent(GeneratedStep step) {
         String id = "agent-" + UUID.randomUUID().toString().substring(0, 8);
         ApiDtos.AgentDefinition def = new ApiDtos.AgentDefinition(
             id,
@@ -500,8 +513,7 @@ public class WorkflowGeneratorService {
             null, false, null,
             false
         );
-        state.putAgent(def);
-        return id;
+        return def;
     }
 
     /**

@@ -1,0 +1,232 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quad.augmentia.de/schema/workflow/quad.workflow.v2.schema.json",
+  "title": "QUAD Workflow Document v2",
+  "description": "Canonical typed workflow definition shared by quad-quarkus and kafka-platform. Control flow is explicit on nodes; the flat {nodes,edges} UI view is a projection. Cross-references (dependsOn, branch targets, body) are checked by the semantic validator, not by JSON Schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "schemaVersion", "mainWorkflow"],
+  "properties": {
+    "format": { "const": "quad.workflow" },
+    "schemaVersion": { "const": 2 },
+    "exportedAt": { "type": "string", "format": "date-time" },
+    "contentHash": { "type": ["string", "null"] },
+    "mainWorkflow": { "$ref": "#/$defs/workflow" },
+    "subWorkflows": { "type": "array", "items": { "$ref": "#/$defs/workflow" } },
+    "agents": { "type": "array", "items": { "$ref": "#/$defs/agent" } }
+  },
+  "$defs": {
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "version", "status", "nodes"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "status": { "enum": ["draft", "published", "archived"] },
+        "initialTask": { "type": ["string", "null"] },
+        "cachePrefix": { "type": ["string", "null"] },
+        "prefixCaching": { "type": ["boolean", "null"] },
+        "inputs": { "type": ["object", "null"] },
+        "createdAt": { "type": ["string", "null"], "format": "date-time" },
+        "updatedAt": { "type": ["string", "null"], "format": "date-time" },
+        "nodes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } }
+      }
+    },
+    "node": {
+      "oneOf": [
+        { "$ref": "#/$defs/nodeAgent" },
+        { "$ref": "#/$defs/nodeDecision" },
+        { "$ref": "#/$defs/nodeLoop" },
+        { "$ref": "#/$defs/nodeFork" },
+        { "$ref": "#/$defs/nodeJoin" },
+        { "$ref": "#/$defs/nodeHitl" },
+        { "$ref": "#/$defs/nodeSubWorkflow" },
+        { "$ref": "#/$defs/nodeEnd" }
+      ]
+    },
+    "nodeAgent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "agent"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "agent" },
+        "title": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "dependsOn": { "type": "array", "items": { "type": "string" } },
+        "timeoutMs": { "type": ["integer", "null"], "minimum": 0 },
+        "requiresHumanApproval": { "type": ["boolean", "null"] },
+        "agent": { "$ref": "#/$defs/agentRef" },
+        "overrides": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Authoring-time overrides of the referenced agent; part of the immutable definition and included in contentHash. Run-time overrides belong to the run state, not here.",
+          "properties": {
+            "model": { "type": "string" },
+            "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+            "systemPrompt": { "type": "string" }
+          }
+        },
+        "input": { "type": ["object", "null"] },
+        "output": { "type": ["object", "null"] }
+      }
+    },
+    "nodeDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "branches"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "decision" },
+        "title": { "type": "string" },
+        "dependsOn": { "type": "array", "items": { "type": "string" } },
+        "branches": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["target"],
+            "properties": {
+              "branchId": { "type": "string" },
+              "condition": { "type": ["string", "null"] },
+              "target": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "defaultTarget": { "type": ["string", "null"] }
+      }
+    },
+    "nodeLoop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "maxIterations", "exitCondition"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "loop" },
+        "title": { "type": "string" },
+        "dependsOn": { "type": "array", "items": { "type": "string" } },
+        "maxIterations": { "type": "integer", "minimum": 1 },
+        "exitCondition": { "type": "string", "minLength": 1 },
+        "bodySteps": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "nodeFork": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "branches"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "fork" },
+        "title": { "type": "string" },
+        "dependsOn": { "type": "array", "items": { "type": "string" } },
+        "branches": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["branchId", "firstStep"],
+            "properties": {
+              "branchId": { "type": "string" },
+              "firstStep": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "nodeJoin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "joinType"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "join" },
+        "title": { "type": "string" },
+        "dependsOn": { "type": "array", "items": { "type": "string" } },
+        "joinType": { "enum": ["all", "any", "n_of_m"] },
+        "joinBranches": { "type": "array", "items": { "type": "string" } },
+        "joinN": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "nodeHitl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "assignee"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "hitl" },
+        "title": { "type": "string" },
+        "dependsOn": { "type": "array", "items": { "type": "string" } },
+        "assignee": { "type": "string", "minLength": 1 },
+        "timeout": { "type": ["string", "null"] },
+        "escalationTarget": { "type": ["string", "null"] }
+      }
+    },
+    "nodeSubWorkflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "workflowRef"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "subworkflow" },
+        "title": { "type": "string" },
+        "dependsOn": { "type": "array", "items": { "type": "string" } },
+        "workflowRef": { "type": "string", "minLength": 1 },
+        "input": { "type": ["object", "null"] }
+      }
+    },
+    "nodeEnd": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "end" },
+        "title": { "type": "string" },
+        "dependsOn": { "type": "array", "items": { "type": "string" } },
+        "output": { "type": ["object", "null"] }
+      }
+    },
+    "agentRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "contentHash"],
+      "properties": {
+        "ref": { "type": "string", "minLength": 1, "description": "Immutable reference, e.g. 'agents/extractor@1.3.0' or a content address. Inline agents are declared in the top-level agents[] and referenced by id." },
+        "contentHash": { "type": "string", "minLength": 1, "description": "Hash of the resolved agent definition. Filled by the publish compiler; mandatory for published workflows and pinned in every run." }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "category": { "type": ["string", "null"] },
+        "model": { "type": ["string", "null"] },
+        "temperature": { "type": "number" },
+        "maxTokens": { "type": "integer", "minimum": 0 },
+        "topP": { "type": "number" },
+        "tools": { "type": "array", "items": { "type": "string" } },
+        "permissions": { "type": ["object", "null"] },
+        "guardrailsInput": { "type": "array", "items": { "type": "string" } },
+        "guardrailsOutput": { "type": "array", "items": { "type": "string" } },
+        "hooks": { "type": "array", "items": { "type": "string" } },
+        "timeoutSeconds": { "type": ["integer", "null"], "minimum": 0 },
+        "systemPrompt": { "type": ["string", "null"] },
+        "userMessageTemplate": { "type": ["string", "null"] },
+        "jsonOutput": { "type": "boolean" },
+        "jsonOutputSchema": { "type": ["string", "null"] },
+        "chatParameters": { "type": ["object", "null"] },
+        "memory": { "type": ["object", "null"] },
+        "active": { "type": "boolean" }
+      }
+    }
+  }
+}

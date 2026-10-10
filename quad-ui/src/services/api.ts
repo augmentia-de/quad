@@ -11,7 +11,6 @@ import type {
   AuditLogEntry,
   AutomationCreateRequest,
   AutomationDetail,
-  AutomationListEntry,
   AutomationListResponse,
   AutomationUpdateRequest,
   ErrorMetrics,
@@ -31,7 +30,6 @@ import type {
   RunAccepted,
   RunView,
   RunsFilter,
-  ScheduleDefinition,
   ScheduledTask,
   SessionDetail,
   SessionEvent,
@@ -62,7 +60,6 @@ export type {
   AuditLogEntry,
   AutomationCreateRequest,
   AutomationDetail,
-  AutomationListEntry,
   AutomationListResponse,
   AutomationUpdateRequest,
   ErrorMetrics,
@@ -254,6 +251,33 @@ export async function duplicateWorkflow(id: string): Promise<string> {
 export function executeWorkflow(id: string, initialData?: string): Promise<RunAccepted> {
   const body = { ...(initialData ? { initialData } : {}) }
   return request<RunAccepted>(`/workflows/${encodeURIComponent(id)}/execute`, json('POST', body))
+}
+
+export interface MaterializeResult {
+  workflowId: string
+  activated: number
+  referenced: number
+  agentIds: string[]
+}
+
+/**
+ * Promotes the workflow's internal step agents (active=false) to normal, editable
+ * agents (active=true). Idempotent. Makes dynamically generated workflows editable.
+ */
+export function materializeWorkflowAgents(id: string): Promise<MaterializeResult> {
+  return request<MaterializeResult>(`/workflows/${encodeURIComponent(id)}/materialize`, { method: 'POST' })
+}
+
+export interface DematerializeResult {
+  workflowId: string
+  deactivated: number
+  referenced: number
+  agentIds: string[]
+}
+
+/** Reverse of materialize: hides the workflow's internal step agents again (active=false). */
+export function dematerializeWorkflowAgents(id: string): Promise<DematerializeResult> {
+  return request<DematerializeResult>(`/workflows/${encodeURIComponent(id)}/dematerialize`, { method: 'POST' })
 }
 
 // ─── Dynamic Workflows ─────────────────────────────────────────────────────
@@ -668,7 +692,7 @@ export function streamAgentExecution(
         }
       }
     },
-    (err) => {
+    () => {
       if (done) return
       done = true
       // SSE not available — fall back to synchronous

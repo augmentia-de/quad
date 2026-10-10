@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchWorkspaceRecent, openWorkspace, setTrust, fetchTrustedWorkspaces, addRoot, removeRoot, createTempSession } from '../services/api'
+import { fetchWorkspaceRecent, openWorkspace, setTrust, fetchTrustedWorkspaces } from '../services/api'
 import type { WorkspaceRecord } from '../services/types'
 
 export function WorkspaceManager() {
@@ -31,7 +31,7 @@ export function WorkspaceManager() {
     try {
       await setTrust(path, trusted)
       load()
-    } catch (_e) {}
+    } catch {}
   }
 
   return (

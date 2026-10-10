@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { fetchMemories, forgetMemory, clearMemories, updateMemory } from '../services/api'
-import type { MemoryCategory, MemoryEntry } from '../services/types'
+import type { MemoryEntry } from '../services/types'
 
 const CATEGORY_LABELS: Record<string, string> = { USER_FACT: 'User Fact', PROJECT_FACT: 'Project Fact', TASK_FACT: 'Task Fact' }
 
@@ -12,7 +12,7 @@ export function MemoryManager() {
   const [editContent, setEditContent] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       const result = scope ? await fetchMemories(scope) : await fetchMemories()
@@ -22,21 +22,21 @@ export function MemoryManager() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [scope])
 
-  useEffect(() => { load() }, [scope])
+  useEffect(() => { load() }, [load])
 
   const handleForget = async (id: string) => {
-    try { await forgetMemory(id); load() } catch (_e) { /* silent */ }
+    try { await forgetMemory(id); load() } catch { /* silent */ }
   }
 
   const handleSave = async (id: string) => {
-    try { await updateMemory(id, editContent); setEditingId(null); load() } catch (_e) { /* silent */ }
+    try { await updateMemory(id, editContent); setEditingId(null); load() } catch { /* silent */ }
   }
 
   const handleClear = async () => {
     if (!confirm('All memories delete?')) return
-    try { await clearMemories(); load() } catch (_e) { /* silent */ }
+    try { await clearMemories(); load() } catch { /* silent */ }
   }
 
   return (

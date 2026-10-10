@@ -53,14 +53,14 @@ export function SkillStoreManager() {
 
   const handleDelete = async (name: string) => {
     if (!confirm(`Delete skill "${name}"?`)) return
-    try { await deleteSkill(name); load() } catch (_e) { /* silent */ }
+    try { await deleteSkill(name); load() } catch { /* silent */ }
   }
 
   const handleToggleActive = async (name: string, active: boolean) => {
     try {
       await activateSkill(name, { active })
       load()
-    } catch (_e) { /* silent */ }
+    } catch { /* silent */ }
   }
 
   return (
