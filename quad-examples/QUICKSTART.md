@@ -28,6 +28,19 @@ mvn -pl quad-examples exec:java \
   -Dexec.mainClass=de.augmentia.quad.examples.quickstart.Step1_MinimalAgent
 ```
 
+Per Skript (lädt die LLM-Settings aus `quad-quarkus/.env`):
+
+```bash
+quad-examples/run-step1.sh              # Schritt 1 (MinimalAgent)
+quad-examples/run-step1.sh --step 3     # anderer Schritt (1..5)
+quad-examples/run-step1.sh --keys       # zusätzlich set_keys.sh sourcen (überschreibt OPENAI_*)
+quad-examples/run-step1.sh --rebuild    # Reactor-Abhängigkeiten frisch installieren
+quad-examples/run-step1.sh --list       # verfügbare Schritte
+```
+
+Das Skript lädt `.env` (per `set -a; source`), kompiliert `quad-examples` und startet die
+gewählte `main`-Klasse per Java-Classpath. Eine andere `.env` per `QUAD_ENV_FILE=/pfad/.env`.
+
 ## Abgrenzung
 
 `quad-examples` enthält darüber hinaus eine gewachsene Sammlung zu einzelnen Features
