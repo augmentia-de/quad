@@ -117,15 +117,15 @@ public class ModelFactory {
     }
 
     /**
-     * Applies optional custom headers ({@link ModelHeaders#fromEnv()}) to a model builder.
-     * No-op unless {@code QUAD_LLM_USER_AGENT}/{@code QUAD_LLM_SESSION_ID}/{@code QUAD_LLM_HEADERS}
-     * are configured, so other providers are unaffected.
+     * Installs a <b>dynamic</b> header supplier ({@link ModelHeaders#current()}) on a model builder.
+     * It is evaluated per request, so the session header can vary per session/run (active
+     * {@link de.augmentia.quad.core.session.CurrentSession}); the static config is the fallback.
+     * No headers are sent when nothing is configured and no session is active, so other providers
+     * are unaffected.
      */
-    private static void applyHeaders(java.util.function.Consumer<Map<String, String>> setter) {
-        Map<String, String> headers = ModelHeaders.fromEnv();
-        if (!headers.isEmpty()) {
-            setter.accept(headers);
-        }
+    private static void applyHeaders(
+            java.util.function.Consumer<java.util.function.Supplier<Map<String, String>>> setter) {
+        setter.accept(ModelHeaders::current);
     }
 
     // ── Provider Implementations ──
