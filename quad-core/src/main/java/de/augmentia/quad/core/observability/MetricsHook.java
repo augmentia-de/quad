@@ -4,6 +4,7 @@ import de.augmentia.quad.core.events.AgentEvent;
 import de.augmentia.quad.core.events.AgentFinishedEvent;
 import de.augmentia.quad.core.events.AgentStartedEvent;
 import de.augmentia.quad.core.events.ModelRequestedEvent;
+import de.augmentia.quad.core.events.ModelRespondedEvent;
 import de.augmentia.quad.core.events.ToolExecutionFinishedEvent;
 import de.augmentia.quad.core.events.ToolExecutionStartedEvent;
 
@@ -28,9 +29,11 @@ public class MetricsHook {
             if (start != null) {
                 metrics.getExecutionDuration().record(Duration.between(start, f.timestamp()));
             }
-        } else if (event instanceof ModelRequestedEvent m) {
+        } else if (event instanceof ModelRequestedEvent) {
             metrics.getLlmCalls().increment();
-            metrics.getPromptTokens().record(m.promptHistory().size());
+        } else if (event instanceof ModelRespondedEvent r) {
+            metrics.getPromptTokens().record(r.inputTokens());
+            metrics.getCompletionTokens().record(r.outputTokens());
         } else if (event instanceof ToolExecutionStartedEvent) {
             metrics.getToolExecutions().increment();
         } else if (event instanceof ToolExecutionFinishedEvent t && t.isError()) {

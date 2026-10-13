@@ -7,6 +7,7 @@ import java.time.Instant;
  */
 public sealed interface AgentEvent
     permits AgentStartedEvent, BeforeInvocationEvent, ModelRequestedEvent,
+            ModelRespondedEvent,
             ToolExecutionStartedEvent, ToolExecutionFinishedEvent,
             AgentFinishedEvent, TokenEvent, AgentStateChangedEvent,
             AfterInvocationEvent {

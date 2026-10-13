@@ -17,6 +17,7 @@ import de.augmentia.quad.core.hook.pipeline.HookResult;
 import de.augmentia.quad.core.events.AgentFinishedEvent;
 import de.augmentia.quad.core.events.AgentStartedEvent;
 import de.augmentia.quad.core.events.ModelRequestedEvent;
+import de.augmentia.quad.core.events.ModelRespondedEvent;
 import de.augmentia.quad.core.events.ToolExecutionFinishedEvent;
 import de.augmentia.quad.core.events.ToolExecutionStartedEvent;
 import de.augmentia.quad.core.session.AgentSessionState;
@@ -419,6 +420,7 @@ public class AgentRuntime {
                         response.tokenUsage().inputTokenCount(),
                         response.tokenUsage().outputTokenCount());
             }
+            fireModelResponded(response);
 
             messages.add(aiMessage);
 
@@ -478,6 +480,16 @@ public class AgentRuntime {
         }
     }
 
+    /** Publishes the token usage of a completed model call (0 when the provider reports none). */
+    private void fireModelResponded(dev.langchain4j.model.chat.response.ChatResponse response) {
+        if (eventPublisher == null || response == null) {
+            return;
+        }
+        int in = response.tokenUsage() != null ? response.tokenUsage().inputTokenCount() : 0;
+        int out = response.tokenUsage() != null ? response.tokenUsage().outputTokenCount() : 0;
+        eventPublisher.fire(new ModelRespondedEvent(sessionId(), Instant.now(), in, out));
+    }
+
     // ── Formatting Pass (Phase 2) ──
 
     private String executeFormattingPass(List<ChatMessage> messages, int depth) {
@@ -510,6 +522,7 @@ public class AgentRuntime {
                 llmSpan.setAttribute("error", true);
                 return "Failed to generate structured output.";
             }
+            fireModelResponded(response);
 
             messages.add(aiMessage);
             if (outputForcer != null && outputForcer.handleResponse(aiMessage, messages)) {
@@ -557,6 +570,7 @@ public class AgentRuntime {
         try {
             var response = llm.chat(request);
             var aiMessage = response.aiMessage();
+            fireModelResponded(response);
             if (aiMessage != null && aiMessage.text() != null) {
                 return ITERATION_LIMIT_MARKER + " — " + maxIterations + " rounds]:\n"
                         + aiMessage.text();

@@ -8,6 +8,7 @@ import de.augmentia.quad.core.events.AgentStateChangedEvent;
 import de.augmentia.quad.core.events.AfterInvocationEvent;
 import de.augmentia.quad.core.events.BeforeInvocationEvent;
 import de.augmentia.quad.core.events.ModelRequestedEvent;
+import de.augmentia.quad.core.events.ModelRespondedEvent;
 import de.augmentia.quad.core.events.TokenEvent;
 import de.augmentia.quad.core.events.ToolExecutionFinishedEvent;
 import de.augmentia.quad.core.events.ToolExecutionStartedEvent;
@@ -122,6 +123,7 @@ public class AgentEventPublisher {
         if (event instanceof AgentStartedEvent) return "AGENT_STARTED";
         if (event instanceof AgentFinishedEvent) return "AGENT_FINISHED";
         if (event instanceof ModelRequestedEvent) return "MODEL_REQUESTED";
+        if (event instanceof ModelRespondedEvent) return "MODEL_RESPONDED";
         if (event instanceof ToolExecutionStartedEvent) return "TOOL_STARTED";
         if (event instanceof ToolExecutionFinishedEvent) return "TOOL_FINISHED";
         if (event instanceof TokenEvent) return "TOKEN";
@@ -135,6 +137,7 @@ public class AgentEventPublisher {
         if (event instanceof AgentStartedEvent e) return e.initialPrompt();
         if (event instanceof AgentFinishedEvent e) return e.finalAnswer();
         if (event instanceof ModelRequestedEvent e) return e.promptHistory().toString();
+        if (event instanceof ModelRespondedEvent e) return "in=" + e.inputTokens() + " out=" + e.outputTokens();
         if (event instanceof ToolExecutionStartedEvent e) return e.toolExecutionRequest().name()
                 + " " + e.toolExecutionRequest().arguments();
         if (event instanceof ToolExecutionFinishedEvent e) return e.toolName()
